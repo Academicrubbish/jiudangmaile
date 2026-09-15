@@ -1,0 +1,11 @@
+node_modules/
+unpackage/
+.DS_Store
+.project-backup/
+.env*
+!.env.example
+uni_modules/uni-config-center/uniCloud/cloudfunctions/common/uni-config-center/uni-id/config.json
+uni_modules/uni-config-center/uniCloud/cloudfunctions/common/uni-config-center/uni-open-bridge/config.json
+uniCloud-aliyun/cloudfunctions/jdml-api/config.local.json
+
+uniCloud-aliyun/cloudfunctions/common/jdml-core/config.local.json

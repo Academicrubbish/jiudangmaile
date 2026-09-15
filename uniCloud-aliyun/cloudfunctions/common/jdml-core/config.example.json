@@ -1,0 +1,30 @@
+{
+  "ai": {
+    "enabled": false,
+    "endpoint": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+    "apiKey": "",
+    "model": "glm-5.2",
+    "thinking": false,
+    "interactiveBudgetMs": 8000,
+    "backgroundBudgetMs": 25000,
+    "maxCallsPerUserDay": 6,
+    "maxCallsGlobalDay": 2000
+  },
+  "scheduler": {
+    "enabled": true,
+    "batchSize": 3
+  },
+  "subscription": {
+    "enabled": false,
+    "dcloudAppid": "__UNI__A2244B7",
+    "templateId": "",
+    "miniprogramState": "developer",
+    "data": {}
+  },
+  "enabledHabits": [
+    "milk_tea",
+    "smoke",
+    "drink",
+    "betel"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "name": "jdml-worker",
+  "version": "0.2.0",
+  "main": "index.js",
+  "dependencies": {
+    "jdml-core": "file:../common/jdml-core",
+    "uni-open-bridge-common": "file:../../../uni_modules/uni-open-bridge-common/uniCloud/cloudfunctions/common/uni-open-bridge-common"
+  },
+  "cloudfunction-config": {
+    "memorySize": 256,
+    "timeout": 120,
+    "keepRunningAfterReturn": false,
+    "triggers": [
+      {
+        "name": "jdml-minute",
+        "type": "timer",
+        "config": "0 0/1 * * * * *"
+      }
+    ]
+  }
+}

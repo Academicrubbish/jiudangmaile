@@ -1,0 +1,14 @@
+[
+  {
+    "IndexName": "next_job",
+    "MgoKeySchema": {
+      "MgoIndexKeys": [
+        {
+          "Name": "nextJobAt",
+          "Direction": "1"
+        }
+      ],
+      "MgoIsUnique": false
+    }
+  }
+]

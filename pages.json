@@ -1,0 +1,58 @@
+{
+  "pages": [
+    {
+      "path": "pages/home/home",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "就当买了"
+      }
+    },
+    {
+      "path": "pages/welcome/welcome",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "就当买了"
+      }
+    },
+    {
+      "path": "pages/setup/setup",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "就当买了"
+      }
+    },
+    {
+      "path": "pages/receipt/receipt",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "就当买了"
+      }
+    },
+    {
+      "path": "pages/history/history",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "就当买了"
+      }
+    },
+    {
+      "path": "pages/invite/invite",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "就当买了"
+      }
+    },
+    {
+      "path": "pages/profile/profile",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "就当买了"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#f4f2e9",
+    "backgroundColor": "#f4f2e9"
+  }
+}
