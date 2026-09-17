@@ -8,7 +8,6 @@
           <text class="navigation-title">{{ back ? '返回小店' : '就当买了' }}</text>
         </button>
         <text v-if="tag && !isWeixin" class="badge navigation-tag">{{ tag }}</text>
-        <button v-if="more" class="tiny-button navigation-more" aria-label="更多" @click="$emit('more')">···</button>
       </view>
     </view>
     <view v-if="tag && isWeixin" class="navigation-subtitle"><text class="badge">{{ tag }}</text></view>
@@ -17,8 +16,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { home } from '../../services/api';
-defineProps({ back: Boolean, more: Boolean, tag: String });
-defineEmits(['more']);
+defineProps({ back: Boolean, tag: String });
 let isWeixin = false;
 // #ifdef MP-WEIXIN
 isWeixin = true;
@@ -72,7 +70,6 @@ function navigateBack() {
 .navigation-brand { flex: 1; min-width: 0; height: 44px; justify-content: flex-start; }
 .navigation-mark { flex-shrink: 0; }
 .navigation-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.navigation-more { flex-shrink: 0; width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; }
 .navigation-tag { flex-shrink: 0; }
 .navigation-subtitle { margin-top: 12px; }
 @media (max-width: 350px) {

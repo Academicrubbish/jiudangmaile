@@ -1,6 +1,6 @@
 <template>
   <view class="shell home-shell">
-    <TopBar more @more="menu = true" />
+    <TopBar />
     <view v-if="error" class="error"
       >{{ error }}<button class="link" @click="load">重新连接小店</button></view
     >
@@ -115,6 +115,17 @@
         >
           <text class="navigation-symbol">≡</text><text>消费记录</text>
         </button>
+        <button
+          class="navigation-action"
+          :disabled="busy"
+          aria-label="我的：昵称、习惯与提醒"
+          @click="menu = true"
+        >
+          <view class="navigation-symbol navigation-profile-icon"
+            ><UniIcons type="person" :size="24" color="#1c2520"
+          /></view>
+          <text>我的</text>
+        </button>
       </view>
     </view>
 
@@ -122,8 +133,14 @@
       ><view class="sheet-backdrop" @click="menu = false"></view
       ><view class="sheet" @click.stop>
         <view class="row"
-          ><text class="small-title">小店的另一面</text
-          ><button class="tiny-button" @click="menu = false">×</button></view
+          ><text class="small-title">我的小店</text
+          ><button
+            class="tiny-button menu-close"
+            aria-label="关闭我的小店"
+            @click="menu = false"
+          >
+            ×
+          </button></view
         >
         <button class="secondary" @click="open('history')">
           消费记录与物品
@@ -322,6 +339,7 @@ import {
   onShareAppMessage
 } from '@dcloudio/uni-app';
 import TopBar from '../../components/jdml/TopBar.vue';
+import UniIcons from '../../uni_modules/uni-icons/components/uni-icons/uni-icons.vue';
 import ItemArt from '../../components/jdml/ItemArt.vue';
 import GiftMessagePicker from '../../components/jdml/GiftMessagePicker.vue';
 import { normalizeHomeState } from '../../services/home-state';
@@ -590,7 +608,7 @@ function pauseReminders() {
 .navigation-action {
   flex: 1;
   min-width: 0;
-  min-height: 58px;
+  min-height: 64px;
   padding: 5px 4px;
   border-radius: 13px;
   display: flex;
@@ -600,6 +618,20 @@ function pauseReminders() {
   font-size: 13px;
   font-weight: 700;
   line-height: 1.4;
+}
+.navigation-profile-icon {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.menu-close {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .navigation-symbol {
   font-size: 22px;
