@@ -17,14 +17,11 @@
   "subscription": {
     "enabled": false,
     "dcloudAppid": "__UNI__A2244B7",
-    "templateId": "",
+    "templateId": "4CJkjeI05NBQ5JSjXbUyD3DWlJ-EiP6CxgUuSAauw9k",
     "miniprogramState": "developer",
-    "data": {}
+    "data": {
+      "thing4": "只是虚构消费，不会扣款"
+    }
   },
-  "enabledHabits": [
-    "milk_tea",
-    "smoke",
-    "drink",
-    "betel"
-  ]
+  "enabledHabits": ["milk_tea", "smoke", "drink", "betel"]
 }

@@ -97,5 +97,23 @@ export const habits = [
   { key: 'milk_tea', name: '奶茶', label: '奶茶常客' },
   { key: 'smoke', name: '香烟', label: '虚构老烟客' },
   { key: 'drink', name: '小酒', label: '微醺想象家' },
-  { key: 'betel', name: '槟榔', label: '空气嚼嚼客' }
+  { key: 'betel', name: '槟榔', label: '槟榔爱好者' }
+];
+
+export const storyTastes = [
+  {
+    key: 'familiar',
+    label: '贴近我的习惯',
+    description: '八成是你爱买的，偶尔来点新鲜的'
+  },
+  {
+    key: 'balanced',
+    label: '各来一半',
+    description: '一半小习惯，一半生活小插曲'
+  },
+  {
+    key: 'adventurous',
+    label: '多来点意外',
+    description: '八成自由发挥，看看今天会想买什么'
+  }
 ];

@@ -2,6 +2,9 @@
 const crypto = require('crypto');
 const D = require('./domain');
 const Schedule = require('./schedule');
+const Subscriptions = require('./subscriptions');
+const Shop = require('./shop');
+const { DISCOVERIES, chooseAutomatic } = require('./story-flavor');
 const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const id = () => crypto.randomBytes(16).toString('hex');
 const TABLES = {
@@ -78,6 +81,7 @@ function createService(store, clock = Date.now, options = {}) {
         };
         await tx.put('users', uid, user);
       }
+      if (user.preferences) user.preferences = D.preferences(user.preferences);
       if (!internal) user.lastSeenAt = now;
       const dayId = hash(uid + ':' + today);
       let day = (await tx.get('days', dayId)) || {
@@ -92,21 +96,30 @@ function createService(store, clock = Date.now, options = {}) {
         day.plan = Schedule.makePlan(user, now, {
           first: !!user.needsFirstEvent
         });
-      async function cleanup() {
-        for (const eid of Object.keys(day.reserved)) {
-          const e = await tx.get('events', eid);
-          if (
-            !e ||
-            ['skipped', 'cancelled', 'play_only'].includes(e.state) ||
-            !D.activeReservation(e, now)
-          )
-            delete day.reserved[eid];
+      // Only issued automatic events consume this budget. Saving, skipping and manual purchases do not.
+      if (day.automaticSpent === undefined) {
+        let spent = 0,
+          identified = 0;
+        for (const slot of day.plan || []) {
+          if (slot.state === 'delivered' && slot.eventId) {
+            const old = await tx.get('events', slot.eventId);
+            if (old) {
+              spent += old.amount;
+              identified++;
+            }
+          }
         }
+        // Older versions counted the welcome event without storing it in the plan.
+        spent +=
+          Math.max(0, (day.automaticCount || 0) - identified) *
+          D.nextAmount(
+            user.preferences?.daily || 0,
+            user.preferences?.daily || 0
+          );
+        day.automaticSpent = spent;
       }
-      await cleanup();
-      const occupied = () =>
-        Object.values(day.reserved).reduce((a, b) => a + b, 0) +
-        Object.values(day.confirmed).reduce((a, b) => a + b, 0);
+      const automaticRemaining = () =>
+        Math.max(0, (user.preferences?.daily || 0) - day.automaticSpent);
       async function ownEvent() {
         const e = await tx.get('events', String(input.id || ''));
         if (!e || e.owner !== uid) D.fail('NOT_FOUND', '这件小事找不到了');
@@ -126,35 +139,76 @@ function createService(store, clock = Date.now, options = {}) {
           }
         }
         if (user.currentId === e.id) user.currentId = '';
+        if (user.randomEventId === e.id) user.randomEventId = '';
+      }
+      function automaticPools() {
+        const remaining = automaticRemaining();
+        const habits = user.preferences.habitOptions.filter(
+          (h) =>
+            D.habitEnabled(h.key, options.enabledHabits) && h.min <= remaining
+        );
+        const discoveries = DISCOVERIES.filter(
+          (h) =>
+            h.min <= remaining &&
+            !user.preferences.habitOptions.some(
+              (own) => own.name === h.name || own.name === h.itemName
+            )
+        );
+        return { habits, discoveries };
       }
       async function create(kind, scheduled = false, slot = null) {
         if (!user.preferences) D.fail('SETUP_REQUIRED', '先给自己安排一个人设');
-        const current =
-          user.currentId && (await tx.get('events', user.currentId));
-        if (
-          !scheduled &&
-          current &&
-          ['offered', 'pending', 'accepted'].includes(current.state) &&
-          D.activeReservation(current, now)
-        ) {
-          if (current.kind !== kind)
-            D.fail('HAS_PENDING_EVENT', '先处理眼前这件小事，再换一种玩法');
-          return D.publicEvent(current, uid);
+        let chosen, mix;
+        if (scheduled) {
+          mix = chooseAutomatic(
+            {
+              ...automaticPools(),
+              taste: user.preferences.storyTaste,
+              credit: user.storyMixCredit,
+              lastItem: user.lastRandomItem
+            },
+            crypto.randomInt
+          );
+          if (!mix)
+            D.fail('NO_ELIGIBLE_HABIT', '剩余随机额度不足，仍可主动花一笔');
+          chosen = mix.option;
+        } else {
+          chosen = Shop.manualChoice(
+            input,
+            user.preferences,
+            options.enabledHabits,
+            crypto.randomInt,
+            user.lastSceneHabit
+          );
         }
-        if (!scheduled) user.currentId = '';
-        const available = user.preferences.daily - occupied();
-        if (available < 100)
-          D.fail('DAILY_ENOUGH', '今天这些就挺好，明天再来玩');
-        const habit =
-          kind === 'treat'
-            ? input.habit || user.preferences.habit
-            : user.preferences.habit;
-        if (!D.ITEMS[habit]) D.fail('INVALID_ITEM', '请选择一件物品');
-        if (options.enabledHabits && !options.enabledHabits.includes(habit))
-          D.fail('THEME_DISABLED', '这个人设暂时休息，换一个试试');
-        const item = D.ITEMS[habit],
-          amount = D.nextAmount(user.preferences.daily, available),
-          eid = id();
+        const habit = chosen.key,
+          item = D.itemFor(chosen);
+        let upper = chosen.max;
+        if (scheduled)
+          upper = Math.min(
+            upper,
+            automaticRemaining(),
+            Math.max(
+              chosen.min,
+              D.nextAmount(user.preferences.daily, automaticRemaining())
+            )
+          );
+        const step = chosen.min % 100 === 0 && upper % 100 === 0 ? 100 : 1;
+        const amount =
+          chosen.min +
+          crypto.randomInt(Math.floor((upper - chosen.min) / step) + 1) * step;
+        const eid = id();
+        if (kind === 'self' && !scheduled) user.lastSceneHabit = habit;
+        if (!scheduled) {
+          const previous =
+            user.currentId && (await tx.get('events', user.currentId));
+          // Keep accepted receipts and invitations independently accessible in history.
+          if (previous?.kind === 'self' && previous.state === 'offered') {
+            previous.state = 'skipped';
+            await release(previous);
+            await saveEvent(previous);
+          }
+        }
         const e = {
           id: eid,
           owner: uid,
@@ -162,13 +216,22 @@ function createService(store, clock = Date.now, options = {}) {
           recipient: '',
           kind,
           habit,
+          habitName: chosen.name,
+          sceneSource: mix?.source || 'manual',
+          storyTaste: scheduled ? user.preferences.storyTaste : null,
+          storyMixCreditAfter: mix ? mix.creditAfter : null,
+          priceRange: { min: chosen.min, max: chosen.max },
           item: item.name,
           unit: item.unit,
           title: item.title,
           reason:
             kind === 'treat'
-              ? '没什么特别的理由，就是想请你一份。东西是想象的，心意算数。'
+              ? '朋友说我最近挺会过日子，我想请他一份' +
+                item.name +
+                '。这么有眼光的人，值得让他下次继续说。'
               : item.reason,
+          sceneSummary:
+            kind === 'treat' ? '朋友这么有眼光，值得请一份' : item.summary,
           amount,
           state: scheduled
             ? 'planned'
@@ -212,25 +275,7 @@ function createService(store, clock = Date.now, options = {}) {
           slot.state = 'prepared';
           e.dueAt = slot.dueAt;
         } else {
-          // A manual story consumes one future slot instead of adding a third automatic demand.
-          const replaced = (day.plan || []).find((s) =>
-            ['waiting', 'prepared'].includes(s.state)
-          );
-          if (replaced) {
-            if (replaced.eventId) {
-              const old = await tx.get('events', replaced.eventId);
-              if (old && old.state === 'planned') {
-                old.state = 'cancelled';
-                await saveEvent(old);
-              }
-            }
-            replaced.state = 'replaced';
-          }
-          day.reserved[eid] = amount;
           user.currentId = eid;
-          if (user.needsFirstEvent)
-            day.automaticCount = (day.automaticCount || 0) + 1;
-          user.needsFirstEvent = false;
         }
         await saveEvent(e);
         return D.publicEvent(e, uid);
@@ -240,39 +285,61 @@ function createService(store, clock = Date.now, options = {}) {
         case 'bootstrap': {
           if (
             options.subscription &&
-            (!user.subscriptionIntent || user.intentExpiresAt <= now)
+            (!user.subscriptionIntent ||
+              user.intentExpiresAt <= now ||
+              user.subscriptionIntentTemplateId !== options.templateId ||
+              user.subscriptionIntentVersion !== (user.reminderVersion || 0))
           ) {
-            user.subscriptionIntent = id();
-            user.intentExpiresAt = now + 15 * 60000;
+            Subscriptions.issueIntent(user, options.templateId, now);
           }
-          const current = user.currentId
+          let current = user.currentId
             ? await tx.get('events', user.currentId)
             : null;
+          if (current?.triggerSource === 'scheduled') {
+            user.randomEventId = user.randomEventId || current.id;
+            user.currentId = '';
+            current = null;
+          }
+          const random = user.randomEventId
+            ? await tx.get('events', user.randomEventId)
+            : null;
+          const randomVisible =
+            random &&
+            D.activeReservation(random, now) &&
+            ['offered', 'accepted'].includes(random.state);
           const visible =
             current &&
             D.activeReservation(current, now) &&
             ['offered', 'accepted', 'pending'].includes(current.state);
           result = {
             user: {
+              id: uid,
               nickname: user.nickname,
               avatar: user.avatar,
               preferences: user.preferences
             },
             current: visible ? D.publicEvent(current, uid) : null,
+            randomEvent: randomVisible ? D.publicEvent(random, uid) : null,
+            unreadCount:
+              randomVisible && random.state === 'offered' && !random.seenAt
+                ? 1
+                : 0,
+            habitOptions: user.preferences?.habitOptions || [],
+            shopOptions: Shop.catalog(user.preferences, options.enabledHabits),
             todayConfirmed: Object.values(day.confirmed).reduce(
               (a, b) => a + b,
               0
             ),
-            available: user.preferences
-              ? Math.max(0, user.preferences.daily - occupied())
-              : 0,
-            reminders: {
-              enabled: !!user.reminderEnabled,
-              available: !!user.subscriptionGrant,
-              intent: user.subscriptionIntent || ''
+            available: automaticRemaining(),
+            automaticBudget: {
+              limit: user.preferences?.daily || 0,
+              spent: day.automaticSpent,
+              remaining: automaticRemaining()
             },
+            reminders: Subscriptions.status(user, options.templateId),
             capabilities: {
               ai: !!options.ai,
+              manualShop: true,
               subscription: !!options.subscription,
               templateId: options.subscription ? options.templateId : ''
             }
@@ -284,15 +351,25 @@ function createService(store, clock = Date.now, options = {}) {
           break;
         }
         case 'settings': {
-          const pref = D.preferences(input);
-          const current =
-            user.currentId && (await tx.get('events', user.currentId));
+          const pref = D.preferences({
+            ...input,
+            storyTaste:
+              input.storyTaste === undefined
+                ? user.preferences?.storyTaste
+                : input.storyTaste
+          });
           if (
-            current &&
-            ['offered', 'pending'].includes(current.state) &&
-            D.activeReservation(current, now)
+            options.enabledHabits &&
+            pref.habits.some((h) => !D.habitEnabled(h, options.enabledHabits))
           )
-            D.fail('HAS_PENDING_EVENT', '先跳过当前小事或撤销请客，再修改设置');
+            D.fail('THEME_DISABLED', '有选中的人设暂时休息，请换一个试试');
+          const current =
+            user.randomEventId && (await tx.get('events', user.randomEventId));
+          if (current?.state === 'offered') {
+            current.state = 'skipped';
+            await release(current);
+            await saveEvent(current);
+          }
           const first = !user.preferences;
           user.preferences = pref;
           if (options.scheduler) {
@@ -319,7 +396,14 @@ function createService(store, clock = Date.now, options = {}) {
         }
         case 'tick': {
           result = { event: null, notify: false };
-          if (!options.scheduler || !Schedule.active(user, now)) {
+          if (
+            !options.scheduler ||
+            !Schedule.active(
+              user,
+              now,
+              options.subscription ? options.templateId : ''
+            )
+          ) {
             user.nextJobAt = null;
             break;
           }
@@ -350,7 +434,7 @@ function createService(store, clock = Date.now, options = {}) {
             break;
           }
           const current =
-            user.currentId && (await tx.get('events', user.currentId));
+            user.randomEventId && (await tx.get('events', user.randomEventId));
           if (
             now >= slot.dueAt &&
             current &&
@@ -369,9 +453,9 @@ function createService(store, clock = Date.now, options = {}) {
           }
           if (slot.state === 'waiting') {
             if (
-              slot.first ||
-              now - slot.dueAt > 60 * 60000 ||
-              user.preferences.daily - occupied() < 100
+              (now - slot.dueAt > 60 * 60000 &&
+                (day.automaticCount || 0) > 0) ||
+              !Object.values(automaticPools()).some((pool) => pool.length)
             ) {
               slot.state = 'skipped';
               break;
@@ -386,16 +470,26 @@ function createService(store, clock = Date.now, options = {}) {
           result.event = D.publicEvent(prepared, uid);
           if (now >= slot.dueAt) {
             if (
-              prepared.amount > user.preferences.daily - occupied() ||
-              prepared.habit !== user.preferences.habit
+              prepared.amount > automaticRemaining() ||
+              (prepared.sceneSource === 'discovery'
+                ? !automaticPools().discoveries.some(
+                    (h) => h.key === prepared.habit
+                  )
+                : !D.selectedHabits(user.preferences).includes(
+                    prepared.habit
+                  ) || !D.habitEnabled(prepared.habit, options.enabledHabits))
             ) {
               prepared.state = 'cancelled';
               slot.state = 'skipped';
               result.event = null;
             } else {
               prepared.state = 'offered';
-              day.reserved[prepared.id] = prepared.amount;
-              user.currentId = prepared.id;
+              if (Number.isInteger(prepared.storyMixCreditAfter))
+                user.storyMixCredit = prepared.storyMixCreditAfter;
+              user.lastRandomItem = prepared.habit;
+              day.automaticSpent += prepared.amount;
+              user.randomEventId = prepared.id;
+              user.needsFirstEvent = false;
               slot.state = 'delivered';
               day.automaticCount = (day.automaticCount || 0) + 1;
               result.event = D.publicEvent(prepared, uid);
@@ -409,39 +503,72 @@ function createService(store, clock = Date.now, options = {}) {
           if (!options.subscription)
             D.fail('CHANNEL_UNAVAILABLE', '提醒渠道尚未配置好');
           if (
+            !input.intent ||
             input.intent !== user.subscriptionIntent ||
+            user.subscriptionIntentTemplateId !== options.templateId ||
+            user.subscriptionIntentVersion !== (user.reminderVersion || 0) ||
             user.intentExpiresAt <= now
           )
-            D.fail('CONSENT_EXPIRED', '页面停留较久，请重新打开后再申请');
+            D.fail('CONSENT_EXPIRED', '提醒信息已更新，请重新打开后再申请');
           if (!['accept', 'reject', 'ban'].includes(input.result))
             D.fail('INVALID_CONSENT', '提醒状态无效');
-          user.subscriptionIntent = '';
-          user.intentExpiresAt = 0;
-          user.reminderEnabled = input.result === 'accept';
-          user.subscriptionGrant = input.result === 'accept';
-          user.subscriptionTemplateId = options.templateId;
+          if (input.automatic && !user.reminderEnabled)
+            D.fail('REMINDERS_PAUSED', '请先主动开启剧情提醒');
+          if (input.result === 'accept') {
+            Subscriptions.setRemaining(
+              user,
+              options.templateId,
+              Subscriptions.remaining(user, options.templateId) + 1
+            );
+            user.reminderEnabled = true;
+          } else {
+            Subscriptions.stop(user, options.templateId);
+          }
           user.consentAt = now;
-          result = {
-            enabled: user.reminderEnabled,
-            available: user.subscriptionGrant
-          };
+          // Consume this nonce and return the next one. Replays cannot add another credit.
+          Subscriptions.issueIntent(user, options.templateId, now);
+          result = Subscriptions.status(user, options.templateId);
+          break;
+        }
+        case 'subscriptionSettings': {
+          if (!options.subscription || input.templateId !== options.templateId)
+            D.fail('CHANNEL_UNAVAILABLE', '提醒渠道尚未配置好');
+          // Only explicit denial/main-switch-off is reported. A stale settings response
+          // must not override a newer grant or a pause/re-enable on another device.
+          if (input.blocked !== true || !Number.isSafeInteger(input.revision))
+            D.fail('INVALID_CONSENT', '提醒状态无效');
+          if (input.revision === (user.subscriptionRevision || 0))
+            Subscriptions.stop(user, options.templateId);
+          result = Subscriptions.status(user, options.templateId);
           break;
         }
         case 'pauseReminders': {
-          user.reminderEnabled = false;
-          user.subscriptionGrant = false;
-          user.reminderVersion = (user.reminderVersion || 0) + 1;
-          result = { enabled: false, available: false };
+          Subscriptions.stop(user, options.templateId);
+          result = Subscriptions.status(user, options.templateId);
           break;
         }
         case 'create':
           result = await create(input.kind === 'treat' ? 'treat' : 'self');
           break;
+        case 'seen': {
+          const e = await ownEvent();
+          if (
+            e.triggerSource !== 'scheduled' ||
+            e.state !== 'offered' ||
+            e.expiresAt <= now
+          )
+            D.fail('EVENT_CLOSED', '这条随机小事已经过去了');
+          e.seenAt = e.seenAt || now;
+          await saveEvent(e);
+          result = D.publicEvent(e, uid);
+          break;
+        }
         case 'accept': {
           const e = await ownEvent();
           if (e.state !== 'offered' || e.expiresAt <= now)
             D.fail('EVENT_CLOSED', '这件小事已经过去了');
           e.state = 'accepted';
+          e.seenAt = e.seenAt || now;
           await saveEvent(e);
           result = D.publicEvent(e, uid);
           break;
@@ -491,24 +618,6 @@ function createService(store, clock = Date.now, options = {}) {
           e.state = 'confirmed';
           await release(e);
           day.confirmed[e.id] = amount;
-          // Any other displayed offer is cancelled explicitly; never silently change its price.
-          const other =
-            user.currentId && (await tx.get('events', user.currentId));
-          if (
-            other &&
-            other.id !== e.id &&
-            occupied() > (user.preferences?.daily || 0) &&
-            ['offered', 'pending'].includes(other.state)
-          ) {
-            other.state = 'cancelled';
-            if (other.token) {
-              const inv = await tx.get('invites', hash(other.token));
-              inv.state = 'cancelled';
-              await tx.put('invites', inv.id, inv);
-            }
-            await release(other);
-            await saveEvent(other);
-          }
           await saveEvent(e);
           result = D.publicEvent(e, uid);
           break;
@@ -528,7 +637,6 @@ function createService(store, clock = Date.now, options = {}) {
           }
           e.deposit.revokedAt = now;
           e.state = 'accepted';
-          if (e.budgetDate === today) day.reserved[e.id] = e.amount;
           await saveEvent(e);
           result = D.publicEvent(e, uid);
           break;
@@ -573,6 +681,16 @@ function createService(store, clock = Date.now, options = {}) {
           const e = await tx.get('events', String(input.id || ''));
           if (!e) D.fail('NOT_FOUND', '这件小事找不到了');
           result = D.publicEvent(e, uid);
+          if (
+            e.owner === uid &&
+            e.triggerSource === 'scheduled' &&
+            e.state === 'offered' &&
+            !e.seenAt
+          ) {
+            e.seenAt = now;
+            await saveEvent(e);
+            result = D.publicEvent(e, uid);
+          }
           break;
         }
         case 'profile': {
@@ -592,13 +710,37 @@ function createService(store, clock = Date.now, options = {}) {
       if (
         options.scheduler &&
         user.preferences &&
-        (!internal || Schedule.active(user, now))
+        (!internal ||
+          Schedule.active(
+            user,
+            now,
+            options.subscription ? options.templateId : ''
+          ))
       ) {
         user.nextJobAt = Schedule.isQuiet(now)
           ? Schedule.localHour(now) < 7
             ? D.dayEnd(now) - D.DAY + 7 * 3600000
             : D.dayEnd(now) + 7 * 3600000
           : Schedule.nextWake(day, now);
+        // Foreground suppression or a temporary credential failure must not lose
+        // today's reminder. Revisit the unseen event without regenerating its story.
+        if (
+          !Schedule.isQuiet(now) &&
+          options.subscription &&
+          user.reminderEnabled &&
+          Subscriptions.remaining(user, options.templateId) > 0 &&
+          user.randomEventId
+        ) {
+          const pending = await tx.get('events', user.randomEventId);
+          if (
+            pending?.state === 'offered' &&
+            !pending.seenAt &&
+            pending.expiresAt > now &&
+            !(await Subscriptions.alreadyAttempted(tx, uid, pending.id, today))
+          ) {
+            user.nextJobAt = Math.min(user.nextJobAt, now + 5 * 60000);
+          }
+        }
       }
       user.updatedAt = now;
       await tx.put('users', uid, user);

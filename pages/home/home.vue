@@ -1,21 +1,47 @@
 <template>
-  <view class="shell"
-    ><view v-if="isPreview()" class="preview"
-      >本地体验 · 数据仅保存在预览服务，不会转账</view
-    ><TopBar more @more="menu = true" /><view v-if="error" class="error"
+  <view class="shell home-shell">
+    <TopBar more @more="menu = true" />
+    <view v-if="error" class="error"
       >{{ error }}<button class="link" @click="load">重新连接小店</button></view
-    ><view v-if="state"
-      ><view class="row"
+    >
+    <template v-if="state">
+      <view class="row home-tools"
         ><text class="eyebrow">{{ persona }}</text
-        ><text class="badge">虚构场景</text></view
-      ><template v-if="event"
-        ><view class="title"
+        ><button class="reminder-entry" @click="reminderPanel = true">
+          消息提醒 ↗
+        </button></view
+      >
+      <button
+        v-if="state.randomEvent"
+        class="inbox-card"
+        :disabled="busy"
+        @click="openRandom"
+      >
+        <view class="row"
+          ><text class="inbox-title"
+            ><text v-if="state.unreadCount" class="unread-dot"></text
+            >{{
+              state.unreadCount ? '收到一条未知小事' : '今天的随机小事'
+            }}</text
+          ><text>↗</text></view
+        >
+        <view class="muted">{{
+          state.unreadCount
+            ? '拆开看看，今天又有什么小剧情？'
+            : '已经看过，随时回来继续这件小事。'
+        }}</view>
+      </button>
+      <template v-if="event">
+        <view class="title"
           ><text class="highlight">{{ event.title }}</text></view
-        ><view class="body">{{ event.reason }}</view
-        ><ItemArt :habit="event.habit" /><view class="price"
+        >
+        <view class="body">{{ event.reason }}</view
+        ><ItemArt :habit="event.habit" />
+        <view class="price"
           >¥{{ money(event.amount) }}
           <text>/ {{ event.unit }} · 假装花</text></view
-        ><button class="primary" :disabled="busy" @click="act">
+        >
+        <button class="primary" :disabled="busy" @click="act">
           {{
             busy
               ? '稍等一下…'
@@ -24,122 +50,253 @@
                 : event.state === 'accepted'
                   ? '看看这张小票 ↗'
                   : (event.actionLabel || '这份算我买了') + ' ↗'
-          }}</button
-        ><button
+          }}
+        </button>
+        <button
           v-if="event.state === 'offered'"
           class="link"
           :disabled="busy"
-          @click="skip"
+          @click="change('skip')"
         >
-          今天先不买</button
-        ><button
+          这次先不买
+        </button>
+        <button
           v-if="event.state === 'pending'"
           class="link"
           :disabled="busy"
-          @click="cancel"
+          @click="change('cancel')"
         >
           撤销这份请客
-        </button></template
-      ><template v-else
-        ><view class="title"
-          >今天挺清闲，<text class="line-break"> </text
-          ><text class="highlight">找点小乐子。</text></view
-        ><ItemArt :habit="state.user.preferences.habit" /><view
-          class="muted"
-          style="text-align: center"
-          >{{
-            state.available >= 100
-              ? '一件小事，也值得好好演。'
-              : '今天这些就挺好，明天再来玩。'
-          }}</view
-        ><button
-          class="primary"
-          :disabled="busy || state.available < 100"
-          @click="create('self')"
+        </button>
+      </template>
+      <template v-else>
+        <view class="title"
+          >今天想给自己，<text class="line-break"></text
+          ><text class="highlight">加点什么戏？</text></view
         >
-          我想花一笔 ↗</button
-        ><button
-          class="secondary"
-          :disabled="busy || state.available < 100"
-          @click="treat = true"
+        <ItemArt :habit="state.user.preferences.habits[0]" />
+        <view class="muted center"
+          >随机小事来了会告诉你，也可以现在主动花一笔。</view
         >
-          请朋友一份
-        </button></template
-      ><button class="link" @click="go('history')">
-        今天记了 ¥{{ money(state.todayConfirmed) }} · 本人确认 →
-      </button></view
-    ><view v-else-if="!error" class="empty">正在打开小店…</view
-    ><view class="footer">东西是虚构的。钱留给自己。</view>
-    <view v-if="menu" class="sheet-cover" @click.self="menu = false"
-      ><view class="sheet"
-        ><view class="row"
+      </template>
+      <button class="history-summary" :disabled="busy" @click="go('history')">
+        <view class="history-summary-copy">
+          <text class="history-summary-title">消费记录</text>
+          <text class="muted"
+            >今天本人确认转存 ¥{{ money(state.todayConfirmed) }}</text
+          >
+        </view>
+        <text class="history-summary-arrow">查看全部 ↗</text>
+      </button>
+    </template>
+    <view v-else-if="!error" class="empty">正在打开小店…</view>
+    <view class="footer">东西是虚构的。钱留给自己。</view>
+
+    <view class="home-navigation">
+      <view class="home-navigation-inner">
+        <button
+          class="navigation-action"
+          :disabled="busy || !state?.user?.preferences"
+          @click="openPurchase('self')"
+        >
+          <text class="navigation-symbol">＋</text><text>花一笔</text>
+        </button>
+        <button
+          class="navigation-action"
+          :disabled="busy || !state?.user?.preferences"
+          @click="openPurchase('treat')"
+        >
+          <text class="navigation-symbol">↗</text><text>请朋友</text>
+        </button>
+        <button
+          class="navigation-action records-action"
+          :disabled="busy"
+          @click="go('history')"
+        >
+          <text class="navigation-symbol">≡</text><text>消费记录</text>
+        </button>
+      </view>
+    </view>
+
+    <view v-if="menu" class="sheet-cover"
+      ><view class="sheet-backdrop" @click="menu = false"></view
+      ><view class="sheet" @click.stop>
+        <view class="row"
           ><text class="small-title">小店的另一面</text
           ><button class="tiny-button" @click="menu = false">×</button></view
-        ><button class="secondary" @click="open('history')">
-          我的小事与物品</button
-        ><button class="secondary" @click="open('profile')">昵称与头像</button
-        ><button
+        >
+        <button class="secondary" @click="open('history')">
+          消费记录与物品
+        </button>
+        <button class="secondary" @click="open('profile')">昵称与头像</button>
+        <button class="secondary" @click="open('setup', 'edit=1')">
+          习惯与剧情口味
+        </button>
+        <button
           class="secondary"
           @click="
             menu = false;
-            go('setup', 'edit=1');
+            reminderPanel = true;
           "
         >
-          修改花钱人设</button
-        ><button
-          v-if="state?.capabilities.subscription"
-          class="secondary"
-          :disabled="busy"
-          @click="subscribe"
-        >
-          有新小事时，提醒我一次</button
-        ><button
-          v-if="state?.reminders.enabled"
-          class="link"
-          :disabled="busy"
-          @click="pauseReminders"
-        >
-          暂停提醒</button
-        ><view class="muted"
-          >{{
-            !state?.capabilities.subscription
-              ? '消息提醒暂不可用，站内小事照常。'
-              : state?.reminders.available
-                ? '已申请一次提醒，实际发送以微信许可为准。'
-                : '需要你主动允许，才会尝试提醒。'
-          }}<text class="line-break"> </text>所有转存记录均由本人确认。</view
-        ></view
-      ></view
+          消息提醒
+        </button>
+      </view></view
     >
-    <view v-if="treat" class="sheet-cover" @click.self="treat = false"
-      ><view class="sheet"
-        ><view class="row"
-          ><text class="small-title">想请朋友点什么？</text
-          ><button class="tiny-button" @click="treat = false">×</button></view
-        ><view class="spacer"></view
+
+    <view v-if="purchase" class="sheet-cover"
+      ><view class="sheet-backdrop" @click="closePurchase"></view
+      ><view class="sheet" @click.stop>
+        <view class="row"
+          ><text class="small-title">{{
+            purchase === 'treat' ? '想请朋友点什么？' : '这次想花在哪儿？'
+          }}</text
+          ><button class="tiny-button" :disabled="busy" @click="closePurchase">
+            ×
+          </button></view
+        >
+        <view class="spacer"></view
         ><view class="pills"
           ><button
-            v-for="h in habits"
+            v-for="h in purchaseOptions"
             :key="h.key"
             class="pill"
-            :class="{ active: treatHabit === h.key }"
-            @click="treatHabit = h.key"
+            :class="{ active: chosenHabit === h.key }"
+            :disabled="busy"
+            @click.stop="chooseProduct(h.key)"
           >
-            {{ h.name }}
+            {{ h.name }}</button
+          ><button
+            class="pill"
+            :class="{ active: chosenHabit === 'custom' }"
+            :disabled="busy || !state?.capabilities?.manualShop"
+            @click.stop="chooseProduct('custom')"
+          >
+            ＋自己写
           </button></view
-        ><view class="spacer"></view
-        ><view class="muted"
-          >一张卡请一个人，24 小时有效。<text class="line-break"> </text
-          >虚构请客金额会占用今天的参考额度。</view
-        ><button class="primary" :disabled="busy" @click="create('treat')">
-          生成一份请客卡 ↗
-        </button></view
-      ></view
-    ></view
-  >
+        >
+        <view v-if="chosenHabit === 'custom'">
+          <text class="label">这次买什么？</text>
+          <view class="field"
+            ><input
+              class="field-input"
+              v-model="customProduct"
+              :disabled="busy"
+              maxlength="12"
+              placeholder="比如：烤红薯、鲜花、电影票"
+          /></view>
+        </view>
+        <text class="label">本次金额</text>
+        <view class="field"
+          ><text>¥</text
+          ><input
+            class="field-input"
+            type="digit"
+            v-model="purchaseAmount"
+            :disabled="busy"
+            maxlength="7"
+            placeholder="1–1000 元"
+        /></view>
+        <view class="muted" style="margin-top: 12px"
+          >想买什么自己选，不限人设，也不占每日随机额度。这次选择不会改变 AI
+          推荐偏好。</view
+        >
+        <view
+          v-if="!state?.capabilities?.manualShop"
+          class="muted"
+          style="margin-top: 12px"
+          >商品库暂未准备好，请稍后重新进入。</view
+        >
+        <view v-if="purchase === 'treat'" class="muted" style="margin-top: 12px"
+          >一张卡请一个人，24 小时有效。已有请客卡仍可领取。</view
+        >
+        <button
+          class="primary"
+          :disabled="busy || !state?.capabilities?.manualShop"
+          @click="create"
+        >
+          {{
+            busy
+              ? '正在安排…'
+              : purchase === 'treat'
+                ? '生成一份请客卡 ↗'
+                : '给我安排这一份 ↗'
+          }}
+        </button>
+      </view></view
+    >
+
+    <view v-if="reminderPanel" class="sheet-cover"
+      ><view class="sheet-backdrop" @click="reminderPanel = false"></view
+      ><view class="sheet" @click.stop>
+        <view class="row"
+          ><text class="small-title">小事来了，告诉我</text
+          ><button class="tiny-button" @click="reminderPanel = false">
+            ×
+          </button></view
+        >
+        <view class="body" style="margin: 16px 0"
+          >进入小店后，新到的随机事件会显示未读提示，点开就能看。</view
+        >
+        <view class="card"
+          ><text class="label" style="margin: 0 0 8px">微信消息提醒</text>
+          <view class="muted">{{
+            !state?.capabilities?.subscription
+              ? state?.capabilities?.subscriptionNeedsUpdate
+                ? '提醒服务需要更新，请更新云函数后重试。站内小事照常可看。'
+                : '微信提醒还在准备中，暂时无法开启。站内未读小事照常可看。'
+              : !state?.reminders?.enabled
+                ? '开启后，小事来了可以通过微信告诉你。'
+                : state?.reminders?.available
+                  ? `已累计 ${state.reminders.remaining} 次提醒机会，实际发送以微信许可为准。`
+                  : '提醒机会暂时用完了，可以再允许一次。'
+          }}</view>
+          <button
+            class="primary"
+            :disabled="
+              busy || subscribing || !state?.capabilities?.subscription
+            "
+            @click="subscribe"
+          >
+            {{
+              !state?.capabilities?.subscription
+                ? '微信提醒暂未开放'
+                : subscribing
+                  ? '正在同步…'
+                  : state?.reminders?.enabled
+                    ? '再允许一次提醒'
+                    : '开启剧情提醒'
+            }}
+          </button>
+          <view class="muted" style="margin-top: 12px">
+            勾选微信弹窗里的“总是保持以上选择”并允许后，拆小事、购买和发起请客时会顺带补充提醒机会。随时可以暂停。
+          </view>
+          <button
+            v-if="state?.reminders?.enabled"
+            class="link"
+            :disabled="busy"
+            @click="pauseReminders"
+          >
+            暂停微信提醒
+          </button>
+          <button class="link" @click="openNotificationSettings">
+            查看微信授权设置 ↗
+          </button>
+        </view>
+        <view
+          v-if="state?.automaticBudget?.limit != null"
+          class="muted"
+          style="margin-top: 16px"
+          >每天自动安排的虚构金额最多 ¥{{
+            money(state?.automaticBudget?.limit)
+          }}，主动花钱和请客另算。看过小事不代表已经存钱。</view
+        >
+      </view></view
+    >
+  </view>
 </template>
 <script setup>
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 import {
   onLoad,
   onShow,
@@ -149,34 +306,85 @@ import {
 } from '@dcloudio/uni-app';
 import TopBar from '../../components/jdml/TopBar.vue';
 import ItemArt from '../../components/jdml/ItemArt.vue';
-import { api, money, go, notify, habits, isPreview } from '../../services/api';
-let linkedEvent = '';
-onLoad((q) => {
-  linkedEvent = q.eventId || '';
-});
+import { normalizeHomeState } from '../../services/home-state';
+import { createSubscriptionController } from '../../services/subscriptions';
+import { api, money, parseMoney, go, notify } from '../../services/api';
 const state = ref(null),
   error = ref(''),
   busy = ref(false),
+  subscribing = ref(false),
   menu = ref(false),
-  treat = ref(false),
-  treatHabit = ref('milk_tea');
-const event = computed(() => state.value?.current);
-const persona = computed(
-  () =>
-    habits.find((h) => h.key === state.value?.user.preferences?.habit)?.label ||
-    '今天的人设'
+  reminderPanel = ref(false),
+  purchase = ref(''),
+  chosenHabit = ref('milk_tea'),
+  customProduct = ref(''),
+  purchaseAmount = ref('10'),
+  viewingRandom = ref(false);
+let subscriptions;
+// #ifdef MP-WEIXIN
+subscriptions = createSubscriptionController({
+  api,
+  platform: uni,
+  onChange: (reminders) => {
+    if (state.value) state.value.reminders = reminders;
+  },
+  onBusy: (value) => {
+    subscribing.value = value;
+  },
+  onError: (e) => {
+    notify(e);
+    load();
+  },
+  onResult: (result) =>
+    uni.showToast({
+      title:
+        result === 'accept' ? '已补充一次提醒机会' : '不提醒，也可以继续玩',
+      icon: 'none'
+    })
+});
+// #endif
+let linkedEvent = '',
+  refreshTimer;
+onLoad((q) => {
+  linkedEvent = q.eventId || '';
+});
+const event = computed(() =>
+  viewingRandom.value ? state.value?.randomEvent : state.value?.current
 );
+const persona = computed(() =>
+  event.value?.triggerSource === 'active'
+    ? event.value.habitName || event.value.item
+    : event.value?.sceneSource === 'discovery'
+      ? '生活随机小插曲'
+      : (state.value?.habitOptions || []).map((h) => h.name).join(' · ') ||
+        '今天的人设'
+);
+const purchaseOptions = computed(() => state.value?.shopOptions || []);
+function chooseProduct(key) {
+  if (busy.value) return;
+  chosenHabit.value = key;
+  if (key !== 'custom') {
+    const option = purchaseOptions.value.find((h) => h.key === key);
+    purchaseAmount.value = money(option?.min || 1000);
+  }
+}
+function closePurchase() {
+  if (!busy.value) purchase.value = '';
+}
 async function load() {
   error.value = '';
   try {
-    const s = await api('bootstrap');
+    const s = normalizeHomeState(await api('bootstrap'));
     if (!s.user.preferences) {
       uni.redirectTo({ url: '/pages/welcome/welcome' });
       return;
     }
     state.value = s;
+    subscriptions?.configure(s);
+    if (!s.randomEvent) viewingRandom.value = false;
     if (linkedEvent) {
-      if (s.current?.id !== linkedEvent)
+      if (s.randomEvent?.id === linkedEvent) await revealRandom();
+      else if (s.current?.id !== linkedEvent)
         notify(new Error('这件小事已经过去了，看看今天的吧'));
       linkedEvent = '';
     }
@@ -184,16 +392,22 @@ async function load() {
     error.value = e.message;
   }
 }
-let refreshTimer;
 onShow(() => {
   load();
   clearInterval(refreshTimer);
   refreshTimer = setInterval(() => {
-    if (!busy.value && !menu.value && !treat.value) load();
+    if (!busy.value && !menu.value && !purchase.value && !reminderPanel.value)
+      load();
   }, 90000);
 });
-onHide(() => clearInterval(refreshTimer));
-onUnload(() => clearInterval(refreshTimer));
+onHide(() => {
+  clearInterval(refreshTimer);
+  subscriptions?.suspend();
+});
+onUnload(() => {
+  clearInterval(refreshTimer);
+  subscriptions?.suspend();
+});
 onShareAppMessage(() => ({
   title: '东西是虚构的，钱留给自己。来「就当买了」演一笔。',
   path: '/pages/home/home'
@@ -209,83 +423,206 @@ async function perform(fn) {
     busy.value = false;
   }
 }
+async function revealRandom() {
+  const e = state.value?.randomEvent;
+  if (!e) return;
+  if (e.unread) {
+    state.value.randomEvent = await api('seen', { id: e.id });
+    state.value.unreadCount = 0;
+  }
+  viewingRandom.value = true;
+}
+function openRandom() {
+  if (!busy.value && state.value?.randomEvent?.unread) subscriptions?.request();
+  perform(revealRandom);
+}
 function act() {
+  if (!busy.value && event.value?.state === 'offered') subscriptions?.request();
   perform(async () => {
-    if (event.value.state === 'offered')
-      await api('accept', { id: event.value.id });
-    go('receipt', 'id=' + event.value.id);
+    const id = event.value.id;
+    if (event.value.state === 'offered') await api('accept', { id });
+    go('receipt', 'id=' + id);
   });
 }
-function skip() {
+function change(action) {
   perform(async () => {
-    await api('skip', { id: event.value.id });
+    await api(action, { id: event.value.id });
     await load();
   });
 }
-function cancel() {
-  perform(async () => {
-    await api('cancel', { id: event.value.id });
-    await load();
-  });
+function openPurchase(kind) {
+  if (busy.value || !state.value?.user?.preferences) return;
+  purchase.value = kind;
+  customProduct.value = '';
+  chooseProduct(purchaseOptions.value[0]?.key || 'custom');
 }
-function create(kind) {
-  perform(async () => {
-    const e = await api('create', {
-      kind,
-      ...(kind === 'treat' ? { habit: treatHabit.value } : {})
-    });
-    treat.value = false;
-    await load();
-    if (kind === 'treat') go('receipt', 'id=' + e.id);
-  });
-}
-function open(p) {
-  menu.value = false;
-  go(p);
-}
-function subscribe() {
-  if (busy.value || !state.value?.capabilities.subscription) return;
-  const templateId = state.value.capabilities.templateId,
-    intent = state.value.reminders.intent;
-  if (!intent) {
-    perform(load);
+function create() {
+  if (busy.value || !state.value?.capabilities?.manualShop) return;
+  let input;
+  try {
+    const amount = parseMoney(purchaseAmount.value);
+    if (amount < 100 || amount > 100000)
+      throw new Error('本次金额为 1–1000 元');
+    if (chosenHabit.value === 'custom') {
+      const name = customProduct.value.trim();
+      if (!name || [...name].length > 12)
+        throw new Error('请用 1–12 个字写下商品名称');
+      input = { kind: purchase.value, customItem: { name }, amount };
+    } else {
+      if (!purchaseOptions.value.some((h) => h.key === chosenHabit.value))
+        throw new Error('先选一个商品');
+      input = { kind: purchase.value, habit: chosenHabit.value, amount };
+    }
+  } catch (e) {
+    notify(e);
     return;
   }
-  // #ifdef MP-WEIXIN
-  busy.value = true;
-  uni.requestSubscribeMessage({
-    tmplIds: [templateId],
-    success: async (result) => {
-      try {
-        await api('subscription', { intent, result: result[templateId] });
-        await load();
-        uni.showToast({
-          title:
-            result[templateId] === 'accept'
-              ? '记住你的提醒意愿了'
-              : '不提醒，也可以继续玩',
-          icon: 'none'
-        });
-      } catch (e) {
-        notify(e);
-      } finally {
-        busy.value = false;
-      }
-    },
-    fail: () => {
-      busy.value = false;
-      notify(new Error('这次没有开启提醒，仍可正常玩'));
-    }
+  subscriptions?.request();
+  perform(async () => {
+    const e = await api('create', input);
+    purchase.value = '';
+    viewingRandom.value = false;
+    await load();
+    if (input.kind === 'treat') go('receipt', 'id=' + e.id);
   });
-  // #endif
-  // #ifndef MP-WEIXIN
-  notify(new Error('请在微信小程序内申请提醒'));
+}
+function open(page, query = '') {
+  menu.value = false;
+  go(page, query);
+}
+function subscribe() {
+  if (busy.value) return;
+  if (!subscriptions) {
+    notify(new Error('请在微信小程序内申请提醒'));
+    return;
+  }
+  subscriptions.request({ explicit: true });
+}
+function openNotificationSettings() {
+  // #ifdef MP-WEIXIN
+  subscriptions?.suspend();
+  uni.openSetting({
+    success: () => load(),
+    fail: () => notify(new Error('请在小程序设置中查看通知授权'))
+  });
   // #endif
 }
 function pauseReminders() {
   perform(async () => {
-    await api('pauseReminders');
+    await subscriptions?.pause();
     await load();
   });
 }
 </script>
+<style scoped>
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+}
+.sheet {
+  position: relative;
+}
+
+.home-shell {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 120px);
+}
+.home-navigation {
+  position: fixed;
+  z-index: 7;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 18px calc(env(safe-area-inset-bottom) + 10px);
+  background: #f4f2e9;
+  border-top: 1px solid #cdd0c3;
+}
+.home-navigation-inner {
+  display: flex;
+  gap: 8px;
+  max-width: 432px;
+  margin: 0 auto;
+}
+.navigation-action {
+  flex: 1;
+  min-width: 0;
+  min-height: 58px;
+  padding: 5px 4px;
+  border-radius: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.navigation-symbol {
+  font-size: 22px;
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+.records-action {
+  background: #eaf1d9;
+  border: 1px solid #bdc8a9;
+}
+.history-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 72px;
+  margin-top: 20px;
+  padding: 16px 0;
+  border-top: 1px dashed #bdc5b1;
+  text-align: left;
+}
+.history-summary-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.history-summary-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+.history-summary-arrow {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #65715e;
+}
+
+.home-tools {
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.reminder-entry {
+  flex-shrink: 0;
+  font-size: 12px;
+  border-bottom: 1px solid #77806f;
+}
+.inbox-card {
+  width: 100%;
+  padding: 16px;
+  border: 1px dashed #65715e;
+  border-radius: 16px;
+  background: #edf3db;
+  text-align: left;
+}
+.inbox-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+.unread-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ce6044;
+  margin-right: 8px;
+}
+.center {
+  text-align: center;
+}
+</style>

@@ -39,24 +39,25 @@ test('金额仅接受整数分及受限设置', () => {
   assert.throws(() => D.preferences({ daily: 150, habit: 'milk_tea' }));
   assert.throws(() => D.preferences({ daily: 2000, habit: 'unknown' }));
 });
-test('日额度共用，刷新不创建新事件，转存确认不会重记', async () => {
+test('主动消费和实际转存可超出自动额度，重复确认仍只记一次', async () => {
   const f = fixture();
-  await setup(f);
+  await setup(f, 'a', 100);
   const e = await f.call('a', 'create', { kind: 'self' });
-  assert.equal(e.amount, 1000);
-  assert.equal((await f.call('a', 'create', { kind: 'self' })).id, e.id);
+  assert.ok(e.amount >= 1000 && e.amount <= 2000);
+  assert.equal((await f.call('a', 'bootstrap')).current.id, e.id);
   await f.call('a', 'accept', { id: e.id });
   await Promise.all([
     f.call('a', 'confirm', { id: e.id, amount: 1200 }),
     f.call('a', 'confirm', { id: e.id, amount: 1200 })
   ]);
-  const e2 = await f.call('a', 'create', { kind: 'self' });
-  assert.equal(e2.amount, 800);
   assert.equal((await f.call('a', 'bootstrap')).todayConfirmed, 1200);
-  await f.call('a', 'accept', { id: e2.id });
-  await f.call('a', 'confirm', { id: e2.id, amount: 800 });
-  await assert.rejects(f.call('a', 'create', {}), { code: 'DAILY_ENOUGH' });
+  assert.equal((await f.call('a', 'bootstrap')).automaticBudget.remaining, 100);
+  const next = await f.call('a', 'create', { kind: 'self' });
+  assert.notEqual(next.id, e.id);
+  const gift = await f.call('a', 'create', { kind: 'treat' });
+  assert.equal(gift.state, 'pending');
 });
+
 test('相同操作编号重放结果，改变参数被拒绝', async () => {
   const f = fixture();
   await setup(f);
@@ -156,4 +157,160 @@ test('未登录拒绝写入，失败事务不留半份邀请', async () => {
   });
   assert.equal(Object.keys(f.store.snapshot().events).length, 0);
   assert.equal(Object.keys(f.store.snapshot().invites).length, 0);
+});
+
+test('多选去重、兼容旧请求，拒绝空列表及非法人设', () => {
+  const normalized = D.preferences({
+    daily: 2000,
+    habits: ['smoke', 'milk_tea', 'smoke']
+  });
+  assert.deepEqual(normalized.habits, ['smoke', 'milk_tea']);
+  assert.equal(normalized.habitOptions.length, 2);
+  assert.deepEqual(D.preferences({ daily: 2000, habit: 'smoke' }).habits, [
+    'smoke'
+  ]);
+  for (const habits of [
+    [],
+    null,
+    'smoke',
+    ['unknown'],
+    ['constructor'],
+    ['__proto__']
+  ])
+    assert.throws(
+      () => D.preferences({ daily: 2000, habits, habit: 'milk_tea' }),
+      { code: 'INVALID_SETTINGS' }
+    );
+});
+
+test('旧数据库单选自动兼容为多选，保留原人设', async () => {
+  const f = fixture();
+  await setup(f);
+  await f.store.transaction(async (tx) => {
+    const user = await tx.get('users', 'a');
+    user.preferences = { daily: 2000, habit: 'smoke' };
+    await tx.put('users', 'a', user);
+  });
+  assert.deepEqual((await f.call('a', 'bootstrap')).user.preferences.habits, [
+    'smoke'
+  ]);
+  assert.equal((await f.call('a', 'create', { kind: 'self' })).habit, 'smoke');
+});
+
+test('多选主动场景轮换，累计花费不影响随机事件预算', async () => {
+  const f = fixture();
+  await f.call('a', 'settings', { daily: 100, habits: ['milk_tea', 'smoke'] });
+  const first = await f.call('a', 'create', { kind: 'self' });
+  await f.call('a', 'accept', { id: first.id });
+  await f.call('a', 'confirm', { id: first.id, amount: 1000 });
+  const second = await f.call('a', 'create', { kind: 'self' });
+  assert.notEqual(first.habit, second.habit);
+  assert.equal((await f.call('a', 'bootstrap')).automaticBudget.spent, 0);
+});
+
+test('同一请客请求重试不重复，新操作可再请一位朋友', async () => {
+  const f = fixture();
+  await setup(f, 'a', 100);
+  const input = { kind: 'treat', habit: 'smoke' };
+  const [a, b] = await Promise.all([
+    f.call('a', 'create', input, 'same_invite_001'),
+    f.call('a', 'create', input, 'same_invite_001')
+  ]);
+  assert.equal(a.id, b.id);
+  const c = await f.call('a', 'create', input, 'next_invite_001');
+  assert.notEqual(c.id, a.id);
+  assert.equal(Object.keys(f.store.snapshot().invites).length, 2);
+  await f.call('b', 'claim', { token: a.token });
+  await f.call('c', 'claim', { token: c.token });
+  assert.equal((await f.call('a', 'bootstrap')).automaticBudget.spent, 0);
+});
+
+test('无效主动操作不改变旧事件，已接受小票不会被后续消费取消', async () => {
+  const f = fixture();
+  await setup(f);
+  const first = await f.call('a', 'create', { kind: 'self' });
+  await assert.rejects(f.call('a', 'create', { kind: 'treat', habit: 'bad' }), {
+    code: 'INVALID_ITEM'
+  });
+  assert.equal((await f.call('a', 'bootstrap')).current.id, first.id);
+  await f.call('a', 'accept', { id: first.id });
+  const gift = await f.call('a', 'create', { kind: 'treat' });
+  await f.call('a', 'confirm', { id: first.id, amount: 100000 });
+  assert.equal((await f.call('a', 'detail', { id: gift.id })).state, 'pending');
+});
+
+test('修改习惯保留主动场景快照，已发出的请客卡仍可领取', async () => {
+  const f = fixture();
+  await setup(f);
+  const old = await f.call('a', 'create', { kind: 'self' });
+  await f.call('a', 'settings', { daily: 2000, habits: ['smoke', 'drink'] });
+  assert.equal((await f.call('a', 'detail', { id: old.id })).state, 'offered');
+  assert.equal((await f.call('a', 'bootstrap')).available, 2000);
+  const gift = await f.call('a', 'create', {
+    kind: 'treat',
+    habit: 'milk_tea'
+  });
+  await f.call('a', 'settings', { daily: 2000, habits: ['betel'] });
+  assert.equal((await f.call('a', 'bootstrap')).current.id, gift.id);
+  assert.equal(
+    (await f.call('b', 'claim', { token: gift.token })).habit,
+    'milk_tea'
+  );
+});
+
+test('停用人设不能被新设置选中，旧多选仅从仍启用的习惯生成', async () => {
+  const f = fixture();
+  await f.call('a', 'settings', { daily: 2000, habits: ['milk_tea', 'smoke'] });
+  const restricted = createService(
+    f.store,
+    () => Date.parse('2026-09-15T02:00:00Z'),
+    { enabledHabits: ['smoke'] }
+  );
+  await assert.rejects(
+    restricted.run(
+      'a',
+      'settings',
+      { daily: 2000, habits: ['milk_tea', 'smoke'] },
+      'restricted_001'
+    ),
+    { code: 'THEME_DISABLED' }
+  );
+  assert.equal(
+    (await restricted.run('a', 'create', { kind: 'self' }, 'restricted_002'))
+      .habit,
+    'smoke'
+  );
+});
+
+test('自定义习惯范围校验，历史快照不随改名删除而改变', async () => {
+  const f = fixture(),
+    key = 'custom_coffee_01';
+  const option = { key, name: '咖啡', min: 1800, max: 2500 };
+  await f.call('a', 'settings', {
+    daily: 1000,
+    habits: [key],
+    habitOptions: [option]
+  });
+  const e = await f.call('a', 'create', { kind: 'self', habit: key });
+  assert.equal(e.item, '咖啡');
+  assert.ok(e.amount >= 1800 && e.amount <= 2500);
+  await f.call('a', 'accept', { id: e.id });
+  await f.call('a', 'settings', { daily: 1000, habits: ['milk_tea'] });
+  const old = await f.call('a', 'detail', { id: e.id });
+  assert.equal(old.item, '咖啡');
+  assert.equal(old.amount, e.amount);
+  for (const change of [
+    { min: 2600 },
+    { min: 0 },
+    { max: 100001 },
+    { min: 1.5 },
+    { name: '<script>' }
+  ])
+    assert.throws(() =>
+      D.preferences({
+        daily: 2000,
+        habits: [key],
+        habitOptions: [{ ...option, ...change }]
+      })
+    );
 });

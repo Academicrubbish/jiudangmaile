@@ -1,9 +1,9 @@
 'use strict';
-const crypto = require('crypto');
-const { dateKey, DAY } = require('./domain');
+const { dateKey } = require('./domain');
 const { isQuiet, active } = require('./schedule');
 const { postJSON } = require('./http');
-const hash = (s) => crypto.createHash('sha256').update(s).digest('hex');
+const Subscriptions = require('./subscriptions');
+const { buildSubscriptionData } = require('./subscription-template');
 function createNotifier(
   store,
   config,
@@ -13,19 +13,21 @@ function createNotifier(
     if (!config.subscription.enabled) return { state: 'unavailable' };
     const now = clock();
     if (isQuiet(now)) return { state: 'quiet' };
-    const noticeId = hash(uid + ':' + dateKey(now));
+    const noticeId = Subscriptions.noticeKey(uid, eventId);
+    const alreadyAttempted = (tx) =>
+      Subscriptions.alreadyAttempted(tx, uid, eventId, dateKey(now));
     // Validate before retrieving provider credentials. Client-reported consent is an intent,
     // not proof of WeChat permission; the WeChat send response remains authoritative.
     const ready = await store.transaction(async (tx) => {
       const user = await tx.get('users', uid),
         e = await tx.get('events', eventId),
-        old = await tx.get('notices', noticeId);
+        old = await alreadyAttempted(tx);
       if (old) return null;
       if (
         !user?.reminderEnabled ||
-        !user.subscriptionGrant ||
+        !Subscriptions.remaining(user, config.subscription.templateId) ||
         user.subscriptionTemplateId !== config.subscription.templateId ||
-        !active(user, now) ||
+        !active(user, now, config.subscription.templateId) ||
         now - user.lastSeenAt < 3 * 60000
       )
         return null;
@@ -34,7 +36,8 @@ function createNotifier(
         e.owner !== uid ||
         e.state !== 'offered' ||
         e.expiresAt <= now ||
-        user.currentId !== e.id ||
+        user.randomEventId !== e.id ||
+        !!e.seenAt ||
         e.generation?.state !== 'ready'
       )
         return null;
@@ -59,25 +62,36 @@ function createNotifier(
     const claimed = await store.transaction(async (tx) => {
       const user = await tx.get('users', uid),
         event = await tx.get('events', eventId),
-        old = await tx.get('notices', noticeId);
+        old = await alreadyAttempted(tx);
       const t = clock();
       if (
         old ||
         isQuiet(t) ||
         dateKey(t) !== dateKey(now) ||
         !user?.reminderEnabled ||
-        !user.subscriptionGrant ||
+        !Subscriptions.remaining(user, config.subscription.templateId) ||
         user.subscriptionTemplateId !== config.subscription.templateId ||
-        !active(user, t) ||
+        !active(user, t, config.subscription.templateId) ||
         t - user.lastSeenAt < 3 * 60000 ||
         (user.reminderVersion || 0) !== ready.version ||
         !event ||
+        event.owner !== uid ||
+        event.generation?.state !== 'ready' ||
         event.state !== 'offered' ||
         event.expiresAt <= t ||
-        user.currentId !== eventId
+        user.randomEventId !== eventId ||
+        !!event.seenAt
       )
         return false;
-      user.subscriptionGrant = false;
+      const data = buildSubscriptionData(config.subscription, event);
+      if (!data) return { state: 'invalid_event' };
+      const creditsAfterReservation =
+        Subscriptions.remaining(user, config.subscription.templateId) - 1;
+      Subscriptions.setRemaining(
+        user,
+        config.subscription.templateId,
+        creditsAfterReservation
+      );
       await tx.put('users', uid, user);
       await tx.put('notices', noticeId, {
         id: noticeId,
@@ -87,13 +101,16 @@ function createNotifier(
         createdAt: t,
         templateId: config.subscription.templateId
       });
-      return true;
+      return {
+        data,
+        creditsAfterReservation,
+        version: user.reminderVersion || 0
+      };
     });
+    if (claimed?.state) return claimed;
     if (!claimed) return { state: 'skipped' };
     // A pending/unknown send is never reclaimed, even after a worker crash.
-    const data = {};
-    for (const [key, value] of Object.entries(config.subscription.data))
-      data[key] = { value };
+    const data = claimed.data;
     let state = 'unknown',
       providerCode = null;
     try {
@@ -119,6 +136,27 @@ function createNotifier(
     }
     await store.transaction(async (tx) => {
       const row = await tx.get('notices', noticeId);
+      // 43101 means there is no usable provider permission. Drop the old estimate,
+      // preserving any grants received while this send was in flight.
+      if (providerCode === 43101) {
+        const user = await tx.get('users', uid);
+        if (
+          user &&
+          user.subscriptionTemplateId === config.subscription.templateId &&
+          (user.reminderVersion || 0) === claimed.version
+        ) {
+          Subscriptions.setRemaining(
+            user,
+            config.subscription.templateId,
+            Math.max(
+              0,
+              Subscriptions.remaining(user, config.subscription.templateId) -
+                claimed.creditsAfterReservation
+            )
+          );
+          await tx.put('users', uid, user);
+        }
+      }
       if (row) {
         row.state = state;
         row.providerCode = providerCode;

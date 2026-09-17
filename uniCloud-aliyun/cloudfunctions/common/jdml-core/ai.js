@@ -1,12 +1,38 @@
 'use strict';
 const { postJSON } = require('./http');
 const { GENERATE, REVIEW, VERSION } = require('./prompts');
-const { ITEMS, dateKey } = require('./domain');
+const { itemFor, dateKey, ITEMS } = require('./domain');
+const { validSceneSummary } = require('./subscription-template');
 const crypto = require('crypto');
 const digest = (text) => crypto.createHash('sha256').update(text).digest('hex');
 const SIZE = (text) => [...text].length;
 const BAD =
-  /倒霉|生病|受伤|摔倒|骨折|死亡|灾[祸难]|丢失|被骗|受骗|被盗|罚款|赔偿|争吵|冲突|羞辱|狗屎|破财|转运|挨饿|乞丐|可怜|必须|赶快|最后机会|不[买付存].{0,8}就|中奖|赌博|贷款|借贷|收益|治失眠|提神醒脑|已[经]?存入|已到账|已捐|代扣|https?:|www\.|<[^>]*>|二维码|微信号|支付宝账号|\d{5,}|[¥￥]|[0-9零一二三四五六七八九十百千]+\s*(元|块钱|人民币)/i;
+  /倒霉|生病|受伤|摔倒|骨折|死亡|故人|最后一程|防灾|消灾|驱邪|安息|祭奠|葬礼|灾[祸难]|丢失|被骗|受骗|被盗|罚款|赔偿|争吵|冲突|羞辱|狗屎|破财|转运|挨饿|乞丐|可怜|必须|赶快|最后机会|不[买付存].{0,8}就|中奖|赌博|贷款|借贷|收益|治失眠|提神醒脑|已[经]?存入|已到账|已捐|代扣|https?:|www\.|<[^>]*>|二维码|微信号|支付宝账号|\d{5,}|[¥￥]|[0-9零一二三四五六七八九十百千]+\s*(元|块钱|人民币)|(?:花了?|省了?|付了?|卖|收)[0-9零一二三四五六七八九十百千]+\s*块/i;
+// Reject the discarded "imaginary goods" style independently of model review.
+function hasImaginaryNarration(text) {
+  return /假装|虚拟|虚构|脑补|精神消费|想象|空气(?:商品|奶茶|香烟|烟|小酒|槟榔|咖啡|零食|薯片|新笔|桌牌|抱枕|杯子)|不存在的(?:商品|奶茶|香烟)/.test(
+    String(text || '')
+  );
+}
+function storyItem(event) {
+  return ITEMS[event.habit]?.name || event.item;
+}
+function needsStyleRepair(event) {
+  return (
+    event?.kind === 'self' &&
+    !event.token &&
+    !event.recipient &&
+    !event.deposit &&
+    ['offered', 'planned'].includes(event.state) &&
+    [
+      event.item,
+      event.title,
+      event.reason,
+      event.sceneSummary,
+      event.actionLabel
+    ].some(hasImaginaryNarration)
+  );
+}
 function similar(a, b) {
   const pairs = (s) => {
     const t = s.replace(/[\s，。！？、]/g, '');
@@ -19,7 +45,14 @@ function similar(a, b) {
   return intersection / Math.max(1, x.size + y.size - intersection) > 0.82;
 }
 function validateScene(scene, input, recent = []) {
-  const expected = ['action_label', 'amount_cents', 'body', 'motif', 'title'];
+  const expected = [
+    'action_label',
+    'amount_cents',
+    'body',
+    'motif',
+    'summary',
+    'title'
+  ];
   if (
     !scene ||
     typeof scene !== 'object' ||
@@ -39,13 +72,15 @@ function validateScene(scene, input, recent = []) {
     )
       throw new Error('SCENE_LENGTH');
   }
+  if (!validSceneSummary(scene.summary)) throw new Error('SCENE_SUMMARY');
   if (
     !Number.isSafeInteger(scene.amount_cents) ||
     scene.amount_cents !== input.amount_cents
   )
     throw new Error('SCENE_AMOUNT');
   if (!/^[a-z][a-z_]{1,40}$/.test(scene.motif)) throw new Error('SCENE_MOTIF');
-  const content = scene.title + scene.body + scene.action_label;
+  const content = scene.title + scene.body + scene.summary + scene.action_label;
+  if (hasImaginaryNarration(content)) throw new Error('SCENE_STYLE');
   if (BAD.test(content) || !scene.body.includes(input.item_name))
     throw new Error('SCENE_CONTENT');
   if (
@@ -62,20 +97,27 @@ function sceneInput(event, recent = []) {
   ).getUTCHours();
   const n = parseInt(digest(event.id).slice(0, 4), 16);
   return {
-    persona: event.habit,
-    item_name: event.item,
+    persona: event.habitName || event.habit,
+    scene_source: event.sceneSource || 'habit',
+    story_taste: event.storyTaste || 'balanced',
+    item_name: storyItem(event),
     item_unit: event.unit,
     interaction_mode: event.kind === 'treat' ? 'treat' : 'self',
     amount_cents: event.amount,
     time_band: hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening',
-    scene_kind: n % 10 < 7 ? 'habit' : n % 10 < 9 ? 'daily_joy' : 'kindness',
-    variation_seed: [
-      'window_seat',
-      'small_pause',
-      'slow_walk',
-      'tiny_celebration',
-      'unexpected_color',
-      'friendly_share'
+    scene_kind:
+      event.kind === 'treat'
+        ? 'kindness'
+        : event.sceneSource === 'discovery'
+          ? 'daily_joy'
+          : 'habit',
+    writing_seed: [
+      '为一个不值得的小细节找了很充分的理由',
+      '给自己定的规矩找一个可笑的例外',
+      '把一句随口的话当成购买的充分依据',
+      '想买的东西突然有了没必要的用途',
+      '试图证明自己很有原则，决定却反了过来',
+      '一本正经地给自己已经想买的东西找理由'
     ][n % 6],
     recent_motifs: recent
       .slice(-10)
@@ -84,28 +126,24 @@ function sceneInput(event, recent = []) {
   };
 }
 function fallback(event) {
-  const item = ITEMS[event.habit];
-  const n = parseInt(digest(event.id).slice(0, 4), 16) % 3;
-  const bodies =
-    event.kind === 'treat'
-      ? [
-          `假装走进一家小店，顺手给朋友安排一份${event.item}。没什么特别的理由，今天就是想大方一下。`,
-          `想给平常的一天加一点仪式感，假装请朋友一份${event.item}。东西是想象的，这份心意先留在这里。`,
-          `在想象的小店里挑了又挑，决定请朋友一份${event.item}。不为什么值得庆祝的大事，只为这一点小乐趣。`
-        ]
-      : [
-          `想象小店的窗边正好空着，假装安排一份${event.item}。坐一小会儿，把这一刻当成今天送给自己的小礼物。`,
-          `给平常的一天加一点戏，假装在小店挑了一份${event.item}。东西不用真买，今天也算认真照顾了自己的小心情。`,
-          `翻开今天的想象菜单，刚好看见一份${event.item}。假装买下它，给忙忙闲闲的日子留一个轻松的小停顿。`
-        ];
+  const item = itemFor({
+    key: event.habit,
+    name: event.habitName || event.item
+  });
+  const treat = event.kind === 'treat';
+  const name = storyItem(event);
   return {
-    title: event.kind === 'treat' ? '一点心意，\n请你收下。' : item.title,
-    body: bodies[n],
-    action_label: item.action,
+    title: treat ? '维护一下口碑' : item.title,
+    body: treat
+      ? `朋友说我最近挺会过日子，我想请他一份${name}。这么有眼光的人，值得让他下次继续说。`
+      : item.reason.split(item.name).join(name),
+    summary: treat ? '朋友这么有眼光，值得请一份' : item.summary,
+    action_label: treat ? '这份我来请' : item.action,
     amount_cents: event.amount,
-    motif: 'fallback_' + n
+    motif: 'fallback_' + event.habit
   };
 }
+
 function createScenePipeline(
   store,
   config,
@@ -176,8 +214,10 @@ function createScenePipeline(
       if (!event || event.generation?.state === 'ready') return event;
       const editable = ['offered', 'pending', 'planned'].includes(event.state);
       const chosen = editable ? scene : fallback(event);
+      event.item = storyItem(event);
       event.title = chosen.title;
       event.reason = chosen.body;
+      event.sceneSummary = chosen.summary;
       event.actionLabel = chosen.action_label;
       event.generation = {
         state: 'ready',
@@ -224,6 +264,32 @@ function createScenePipeline(
     const lockId = crypto.randomBytes(12).toString('hex');
     const claim = await store.transaction(async (tx) => {
       const e = await tx.get('events', eventId);
+      if (
+        needsStyleRepair(e) &&
+        e.generation?.state === 'ready' &&
+        e.expiresAt > start
+      ) {
+        // Repair only an unaccepted personal scene. Shared invitations and completed
+        // receipts keep their original snapshot; never charge again or call AI on read.
+        const oldVersion = e.generation.promptVersion || 'legacy';
+        const repaired = fallback(e);
+        e.item = storyItem(e);
+        e.title = repaired.title;
+        e.reason = repaired.body;
+        e.sceneSummary = repaired.summary;
+        e.actionLabel = repaired.action_label;
+        e.generation = {
+          ...e.generation,
+          mode: 'fallback',
+          promptVersion: VERSION,
+          motif: repaired.motif,
+          bodyHash: digest(repaired.body),
+          repairedFromVersion: oldVersion,
+          styleRepairedAt: start
+        };
+        e.source = 'reviewed-library-v3';
+        await tx.put('events', eventId, e);
+      }
       if (!e || !e.generation || e.generation.state === 'ready')
         return { event: e, locked: false };
       if (e.generation.leaseUntil > start) return { event: e, locked: false };
@@ -315,5 +381,7 @@ module.exports = {
   validateScene,
   sceneInput,
   fallback,
-  similar
+  similar,
+  hasImaginaryNarration,
+  needsStyleRepair
 };

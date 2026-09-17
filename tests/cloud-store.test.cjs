@@ -104,7 +104,7 @@ test('云适配器正确解包事务对象，并在真实式写冲突后重试',
   assert.equal((await service.preview(e.token)).status, 'claimed');
 });
 
-test('云更新必须覆盖嵌套额度映射，释放后不残留旧占用', async () => {
+test('云更新必须覆盖嵌套确认映射，撤销后不残留旧金额', async () => {
   const db = sdk(),
     service = createService(createCloudStore(db), () =>
       Date.parse('2026-09-15T02:00:00Z')
@@ -115,8 +115,30 @@ test('云更新必须覆盖嵌套额度映射，释放后不残留旧占用', as
   const e = await call('create', { kind: 'self' });
   await call('accept', { id: e.id });
   await call('confirm', { id: e.id, amount: 1000 });
-  assert.equal((await call('bootstrap', {})).available, 1000);
+  assert.equal((await call('bootstrap', {})).todayConfirmed, 1000);
   await call('undo', { id: e.id });
   await call('playOnly', { id: e.id });
-  assert.equal((await call('bootstrap', {})).available, 2000);
+  assert.equal((await call('bootstrap', {})).todayConfirmed, 0);
+});
+
+test('真实式事务写冲突下自动事件只发一份、只扣一次自动预算', async () => {
+  const db = sdk(),
+    store = createCloudStore(db),
+    s = createService(store, () => Date.parse('2026-09-15T02:00:00Z'), {
+      scheduler: true,
+      internal: true
+    });
+  await s.run(
+    'a',
+    'settings',
+    { daily: 2000, habit: 'milk_tea' },
+    'budget_setup_001'
+  );
+  const results = await Promise.all([s.run('a', 'tick'), s.run('a', 'tick')]);
+  assert.equal(results.filter((r) => r.notify).length, 1);
+  assert.ok(db.stats().conflicts > 0);
+  const state = await s.run('a', 'bootstrap');
+  assert.equal(state.automaticBudget.spent, 1000);
+  assert.equal(state.unreadCount, 1);
+  assert.equal((await store.get('users', 'a')).storyMixCredit, 0);
 });

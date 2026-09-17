@@ -1,6 +1,6 @@
 'use strict';
 const { createService } = require('./service');
-const { createScenePipeline } = require('./ai');
+const { createScenePipeline, needsStyleRepair } = require('./ai');
 const { createNotifier } = require('./notifications');
 const D = require('./domain');
 const { isQuiet } = require('./schedule');
@@ -9,6 +9,7 @@ const ALLOWED = new Set([
   'settings',
   'create',
   'accept',
+  'seen',
   'skip',
   'playOnly',
   'cancel',
@@ -20,6 +21,7 @@ const ALLOWED = new Set([
   'history',
   'subscription',
   'pauseReminders',
+  'subscriptionSettings',
   'presence'
 ]);
 function createRuntime(store, config, deps = {}) {
@@ -42,7 +44,7 @@ function createRuntime(store, config, deps = {}) {
     { background = false, forceFallback = false } = {}
   ) {
     if (!event) return null;
-    if (event.sceneReady) return event;
+    if (event.sceneReady && !needsStyleRepair(event)) return event;
     const ready = await pipeline.ensureReady(event.id, {
       background,
       forceFallback
@@ -60,10 +62,16 @@ function createRuntime(store, config, deps = {}) {
       );
       return result;
     }
-    const result = await service.run(uid, action, input, requestId);
-    if (action === 'bootstrap')
+    let result = await service.run(uid, action, input, requestId);
+    // Entering the app may catch up an already-due event, even without a recent worker run.
+    if (action === 'bootstrap' && config.scheduler.enabled) {
+      await workerService.run(uid, 'tick');
+      result = await service.run(uid, 'bootstrap');
+    }
+    if (action === 'bootstrap') {
       result.current = await refreshed(uid, result.current);
-    else if (result?.id && result?.item) return refreshed(uid, result);
+      result.randomEvent = await refreshed(uid, result.randomEvent);
+    } else if (result?.id && result?.item) return refreshed(uid, result);
     return result;
   }
   async function tick() {
@@ -83,8 +91,22 @@ function createRuntime(store, config, deps = {}) {
           await refreshed(user.id, result.event, { background: true });
           prepared++;
         }
-        if (result.notify && result.event) {
-          const r = await notifier.send(user.id, result.event.id);
+        // Also retry an unseen event deferred while the user was in the app.
+        // Per-event send records prevent re-sends after an accepted/unknown attempt.
+        const currentUser = await store.get('users', user.id);
+        const pending = currentUser?.randomEventId
+          ? await store.get('events', currentUser.randomEventId)
+          : null;
+        if (
+          config.subscription.enabled &&
+          pending?.state === 'offered' &&
+          !pending.seenAt &&
+          pending.expiresAt > clock()
+        ) {
+          await refreshed(user.id, D.publicEvent(pending, user.id), {
+            background: true
+          });
+          const r = await notifier.send(user.id, pending.id);
           if (r.state === 'accepted') notices++;
         }
         processed++;

@@ -16,6 +16,26 @@
     },
     "createdAt": {
       "bsonType": "long"
+    },
+    "subscriptionCredits": {
+      "bsonType": "int",
+      "description": "当前模板的本地可用次数估算；实际发送以微信结果为准"
+    },
+    "subscriptionTemplateId": {
+      "bsonType": "string",
+      "description": "次数所属模板，换模板不能沿用"
+    },
+    "subscriptionRevision": {
+      "bsonType": "long",
+      "description": "授权状态版本，防止过时设置覆盖"
+    },
+    "reminderVersion": {
+      "bsonType": "long",
+      "description": "暂停及拒绝版本，作废在途操作"
+    },
+    "subscriptionIntentVersion": {
+      "bsonType": "long",
+      "description": "一次性意图绑定的暂停版本"
     }
   }
 }

@@ -1,5 +1,6 @@
 'use strict';
 const crypto = require('crypto');
+const { remaining } = require('./subscriptions');
 const { DAY, dateKey, dayEnd } = require('./domain');
 const HOUR = 3600000,
   PREPARE_AHEAD = 15 * 60000;
@@ -22,11 +23,12 @@ function isQuiet(now) {
   const h = localHour(now);
   return h < 7 || h >= 22;
 }
-function active(user, now) {
+function active(user, now, templateId = '') {
   return (
     !!user.preferences &&
     !!user.lastSeenAt &&
-    dateKey(now) <= dateKey(user.lastSeenAt + 2 * DAY)
+    (dateKey(now) <= dateKey(user.lastSeenAt + 2 * DAY) ||
+      (!!templateId && user.reminderEnabled && remaining(user, templateId) > 0))
   );
 }
 function pickTime(start, earliest, rng) {
@@ -37,14 +39,22 @@ function pickTime(start, earliest, rng) {
         [start + 7 * HOUR, start + 8 * HOUR],
         [start + 21 * HOUR, start + 22 * HOUR]
       ];
-  const candidates = ranges
+  let candidates = ranges
     .map(([a, b]) => [Math.max(a, earliest), b])
     .filter(([a, b]) => b - a >= 60000);
-  if (!candidates.length) return null;
+  // A weighted time window may already have passed. Use the remaining daytime
+  // window instead of randomly dropping today's first opportunity.
+  if (!candidates.length) {
+    const a = Math.max(start + 7 * HOUR, earliest),
+      b = start + 22 * HOUR;
+    if (a >= b) return null;
+    candidates = [[a, b]];
+  }
   const total = candidates.reduce((s, [a, b]) => s + b - a, 0);
   let offset = rng() * total;
   for (const [a, b] of candidates) {
-    if (offset <= b - a) return Math.floor((a + offset) / 60000) * 60000;
+    if (offset <= b - a)
+      return Math.max(a, Math.floor((a + offset) / 60000) * 60000);
     offset -= b - a;
   }
   return null;

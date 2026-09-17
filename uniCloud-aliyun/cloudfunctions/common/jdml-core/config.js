@@ -1,5 +1,6 @@
 'use strict';
 const defaults = require('./config.example.json');
+const { validSubscriptionData } = require('./subscription-template');
 function normalizeConfig(input = {}) {
   const config = {
     ai: { ...defaults.ai, ...input.ai },
@@ -32,22 +33,12 @@ function normalizeConfig(input = {}) {
     'https://open.bigmodel.cn/api/paas/v4/chat/completions'
   )
     config.ai.enabled = false;
-  const entries = Object.entries(config.subscription.data || {});
   config.subscription.enabled =
     config.subscription.enabled === true &&
-    !!config.subscription.templateId &&
+    typeof config.subscription.templateId === 'string' &&
+    /^[A-Za-z0-9_-]+$/.test(config.subscription.templateId) &&
     !!config.subscription.dcloudAppid &&
-    entries.length > 0;
-  // Only configured template fields and harmless fixed text are allowed. AI never writes notifications.
-  if (
-    entries.some(
-      ([key, value]) =>
-        !/^(thing|phrase|time|date|character_string|number)\d+$/.test(key) ||
-        typeof value !== 'string' ||
-        value.length > 100
-    )
-  )
-    config.subscription.enabled = false;
+    validSubscriptionData(config.subscription.data);
   if (
     !['developer', 'trial', 'formal'].includes(
       config.subscription.miniprogramState
