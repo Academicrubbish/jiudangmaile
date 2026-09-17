@@ -61,14 +61,11 @@ input {
   background-image: radial-gradient(#cdd0c3 0.7px, transparent 0.7px);
   background-size: 20px 20px;
 }
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 44px;
-  margin-bottom: 40px;
+/* #ifdef MP-WEIXIN */
+.shell {
+  padding-top: 0;
 }
+/* #endif */
 .brand {
   font-weight: 800;
   letter-spacing: 1px;
@@ -181,12 +178,23 @@ input {
   background: #f9f8f1;
 }
 .field {
-  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
   background: #faf9f4;
   border: 1px solid #b8c1ad;
   border-radius: 12px;
   height: 50px;
   width: 100%;
+}
+.field-input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  line-height: 24px;
+  padding: 0;
+  font-size: 15px;
 }
 .label {
   display: block;
@@ -290,9 +298,6 @@ input {
   }
   .pill {
     padding: 7px 12px;
-  }
-  .header {
-    margin-bottom: 28px;
   }
 }
 @media (min-width: 600px) {
