@@ -16,6 +16,11 @@
     },
     "createdAt": {
       "bsonType": "long"
+    },
+    "giftMessage": {
+      "bsonType": "string",
+      "maxLength": 80,
+      "description": "发起者选定或自定义的请客留言；随邀请保存，双方共用，旧记录可缺省"
     }
   }
 }

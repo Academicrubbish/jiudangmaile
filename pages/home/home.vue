@@ -147,82 +147,99 @@
     <view v-if="purchase" class="sheet-cover"
       ><view class="sheet-backdrop" @click="closePurchase"></view
       ><view class="sheet" @click.stop>
-        <view class="row"
-          ><text class="small-title">{{
-            purchase === 'treat' ? '想请朋友点什么？' : '这次想花在哪儿？'
-          }}</text
-          ><button class="tiny-button" :disabled="busy" @click="closePurchase">
-            ×
-          </button></view
-        >
-        <view class="spacer"></view
-        ><view class="pills"
-          ><button
-            v-for="h in purchaseOptions"
-            :key="h.key"
-            class="pill"
-            :class="{ active: chosenHabit === h.key }"
-            :disabled="busy"
-            @click.stop="chooseProduct(h.key)"
+        <GiftMessagePicker
+          v-if="giftDraft"
+          :input="giftDraft.input"
+          :item="giftDraft.item"
+          :busy="busy"
+          @back="giftDraft = null"
+          @confirm="createGift"
+        />
+        <template v-else>
+          <view class="row"
+            ><text class="small-title">{{
+              purchase === 'treat' ? '想请朋友点什么？' : '这次想花在哪儿？'
+            }}</text
+            ><button
+              class="tiny-button"
+              :disabled="busy"
+              @click="closePurchase"
+            >
+              ×
+            </button></view
           >
-            {{ h.name }}</button
-          ><button
-            class="pill"
-            :class="{ active: chosenHabit === 'custom' }"
-            :disabled="busy || !state?.capabilities?.manualShop"
-            @click.stop="chooseProduct('custom')"
+          <view class="spacer"></view
+          ><view class="pills"
+            ><button
+              v-for="h in purchaseOptions"
+              :key="h.key"
+              class="pill"
+              :class="{ active: chosenHabit === h.key }"
+              :disabled="busy"
+              @click.stop="chooseProduct(h.key)"
+            >
+              {{ h.name }}</button
+            ><button
+              class="pill"
+              :class="{ active: chosenHabit === 'custom' }"
+              :disabled="busy || !state?.capabilities?.manualShop"
+              @click.stop="chooseProduct('custom')"
+            >
+              ＋自己写
+            </button></view
           >
-            ＋自己写
-          </button></view
-        >
-        <view v-if="chosenHabit === 'custom'">
-          <text class="label">这次买什么？</text>
+          <view v-if="chosenHabit === 'custom'">
+            <text class="label">这次买什么？</text>
+            <view class="field"
+              ><input
+                class="field-input"
+                v-model="customProduct"
+                :disabled="busy"
+                maxlength="12"
+                placeholder="比如：烤红薯、鲜花、电影票"
+            /></view>
+          </view>
+          <text class="label">本次金额</text>
           <view class="field"
+            ><text>¥</text
             ><input
               class="field-input"
-              v-model="customProduct"
+              type="digit"
+              v-model="purchaseAmount"
               :disabled="busy"
-              maxlength="12"
-              placeholder="比如：烤红薯、鲜花、电影票"
+              maxlength="7"
+              placeholder="1–1000 元"
           /></view>
-        </view>
-        <text class="label">本次金额</text>
-        <view class="field"
-          ><text>¥</text
-          ><input
-            class="field-input"
-            type="digit"
-            v-model="purchaseAmount"
-            :disabled="busy"
-            maxlength="7"
-            placeholder="1–1000 元"
-        /></view>
-        <view class="muted" style="margin-top: 12px"
-          >想买什么自己选，不限人设，也不占每日随机额度。这次选择不会改变 AI
-          推荐偏好。</view
-        >
-        <view
-          v-if="!state?.capabilities?.manualShop"
-          class="muted"
-          style="margin-top: 12px"
-          >商品库暂未准备好，请稍后重新进入。</view
-        >
-        <view v-if="purchase === 'treat'" class="muted" style="margin-top: 12px"
-          >一张卡请一个人，24 小时有效。已有请客卡仍可领取。</view
-        >
-        <button
-          class="primary"
-          :disabled="busy || !state?.capabilities?.manualShop"
-          @click="create"
-        >
-          {{
-            busy
-              ? '正在安排…'
-              : purchase === 'treat'
-                ? '生成一份请客卡 ↗'
-                : '给我安排这一份 ↗'
-          }}
-        </button>
+          <view class="muted" style="margin-top: 12px"
+            >想买什么自己选，不限人设，也不占每日随机额度。这次选择不会改变 AI
+            推荐偏好。</view
+          >
+          <view
+            v-if="!state?.capabilities?.manualShop"
+            class="muted"
+            style="margin-top: 12px"
+            >商品库暂未准备好，请稍后重新进入。</view
+          >
+          <view
+            v-if="purchase === 'treat'"
+            class="muted"
+            style="margin-top: 12px"
+            >一张卡请一个人，24 小时有效。已有请客卡仍可领取。</view
+          >
+          <button
+            class="primary"
+            :disabled="busy || !state?.capabilities?.manualShop"
+            @click="create"
+          >
+            {{
+              busy
+                ? '正在安排…'
+                : purchase === 'treat'
+                  ? '下一步，捎句话 ↗'
+                  : '给我安排这一份 ↗'
+            }}
+          </button>
+        </template>
       </view></view
     >
 
@@ -306,6 +323,7 @@ import {
 } from '@dcloudio/uni-app';
 import TopBar from '../../components/jdml/TopBar.vue';
 import ItemArt from '../../components/jdml/ItemArt.vue';
+import GiftMessagePicker from '../../components/jdml/GiftMessagePicker.vue';
 import { normalizeHomeState } from '../../services/home-state';
 import { createSubscriptionController } from '../../services/subscriptions';
 import { api, money, parseMoney, go, notify } from '../../services/api';
@@ -316,6 +334,7 @@ const state = ref(null),
   menu = ref(false),
   reminderPanel = ref(false),
   purchase = ref(''),
+  giftDraft = ref(null),
   chosenHabit = ref('milk_tea'),
   customProduct = ref(''),
   purchaseAmount = ref('10'),
@@ -369,7 +388,10 @@ function chooseProduct(key) {
   }
 }
 function closePurchase() {
-  if (!busy.value) purchase.value = '';
+  if (!busy.value) {
+    purchase.value = '';
+    giftDraft.value = null;
+  }
 }
 async function load() {
   error.value = '';
@@ -453,6 +475,7 @@ function change(action) {
 function openPurchase(kind) {
   if (busy.value || !state.value?.user?.preferences) return;
   purchase.value = kind;
+  giftDraft.value = null;
   customProduct.value = '';
   chooseProduct(purchaseOptions.value[0]?.key || 'custom');
 }
@@ -477,10 +500,32 @@ function create() {
     notify(e);
     return;
   }
+  if (input.kind === 'treat') {
+    // Older deployments must not silently drop the chosen words on creation.
+    if (!state.value?.capabilities?.giftMessages) {
+      notify(new Error('请客留言还在准备中，请稍后重新进入小店'));
+      return;
+    }
+    giftDraft.value = {
+      input,
+      item:
+        input.customItem?.name ||
+        purchaseOptions.value.find((h) => h.key === input.habit).name
+    };
+    return;
+  }
+  submitPurchase(input);
+}
+function createGift(giftMessage) {
+  if (busy.value || !giftDraft.value) return;
+  submitPurchase({ ...giftDraft.value.input, giftMessage });
+}
+function submitPurchase(input) {
   subscriptions?.request();
   perform(async () => {
     const e = await api('create', input);
     purchase.value = '';
+    giftDraft.value = null;
     viewingRandom.value = false;
     await load();
     if (input.kind === 'treat') go('receipt', 'id=' + e.id);

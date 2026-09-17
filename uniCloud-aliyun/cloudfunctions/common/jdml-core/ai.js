@@ -4,6 +4,7 @@ const { GENERATE, REVIEW, VERSION } = require('./prompts');
 const { itemFor, dateKey, ITEMS } = require('./domain');
 const { validSceneSummary } = require('./subscription-template');
 const crypto = require('crypto');
+const Gift = require('./gift-messages');
 const digest = (text) => crypto.createHash('sha256').update(text).digest('hex');
 const SIZE = (text) => [...text].length;
 const BAD =
@@ -374,7 +375,85 @@ function createScenePipeline(
     });
     return output;
   }
-  return { ensureReady };
+  async function giftMessages(uid, requestId, context) {
+    const key = digest(uid + ':' + requestId);
+    const start = clock(),
+      deadline = start + config.ai.interactiveBudgetMs;
+    // Use the authenticated operation record for retry caching and generation locking.
+    const claim = await store.transaction(async (tx) => {
+      const request = await tx.get('requests', key);
+      if (
+        !request ||
+        request.owner !== uid ||
+        request.action !== 'giftMessages'
+      )
+        throw new Error('GIFT_REQUEST');
+      if (request.result.options) return { result: request.result };
+      if (request.giftLeaseUntil > start) return { locked: false };
+      request.giftLeaseUntil = deadline;
+      await tx.put('requests', key, request);
+      return { locked: true };
+    });
+    if (claim.result) return claim.result;
+    let options = Gift.fallbackMessages(context.item, context.exclude),
+      mode = 'fallback';
+    if (claim.locked && config.ai.enabled) {
+      try {
+        const input = {
+          item: context.item,
+          exclude: context.exclude,
+          variation: crypto.randomBytes(8).toString('hex')
+        };
+        const candidate = Gift.validateCandidates(
+          await chat(
+            uid,
+            [
+              { role: 'system', content: Gift.GENERATE },
+              { role: 'user', content: JSON.stringify(input) }
+            ],
+            deadline,
+            0.95
+          ),
+          context.exclude
+        );
+        const review = await chat(
+          uid,
+          [
+            { role: 'system', content: Gift.REVIEW },
+            {
+              role: 'user',
+              content: JSON.stringify({
+                item: context.item,
+                options: candidate
+              })
+            }
+          ],
+          deadline,
+          0
+        );
+        if (
+          !review ||
+          Object.keys(review).join() !== 'safe' ||
+          review.safe !== true
+        )
+          throw new Error('GIFT_REVIEW');
+        options = candidate;
+        mode = 'ai';
+      } catch (_) {
+        // Timeout, unavailable provider, exhausted quota or rejected text: keep the safe choices.
+      }
+    }
+    return store.transaction(async (tx) => {
+      const request = await tx.get('requests', key);
+      // A concurrent fallback or successful retry wins; late responses never replace it.
+      if (request.result.options) return request.result;
+      request.result = { item: context.item, options, mode };
+      request.giftLeaseUntil = 0;
+      await tx.put('requests', key, request);
+      return request.result;
+    });
+  }
+  return { ensureReady, giftMessages };
 }
 module.exports = {
   createScenePipeline,

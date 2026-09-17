@@ -197,6 +197,7 @@ function publicEvent(e, uid) {
     senderAvatar,
     recipientName,
     actionLabel: actionLabel || ITEMS[habit]?.action || '这份算我买了',
+    giftMessage: kind === 'treat' ? e.giftMessage || '' : '',
     triggerSource: e.triggerSource || 'active',
     sceneSource: e.sceneSource || 'habit',
     habitName: e.habitName || '',

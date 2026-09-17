@@ -1,5 +1,6 @@
 <template><view class="shell"><TopBar back/><view v-if="error" class="error">{{error}}<button class="link" @click="load">重试</button></view><template v-if="event"><view class="receipt"><view class="row"><text class="eyebrow">就当买了 / 精神小票</text><text class="badge">{{event.role==='recipient'?'收到一份':event.kind==='treat'?'请客一份':'虚构消费'}}</text></view><ItemArt :habit="event.habit" small/><view class="small-title" style="margin-top:20px">{{event.item}}</view><view class="muted" v-if="event.kind==='treat'">{{event.role==='recipient'?event.senderName+' 请你一份':event.claimed?(event.recipientName+' 已接受'):'等一位朋友来收下'}}</view><view class="dash"></view><view class="body">{{event.reason}}</view><view class="dash"></view><view class="row"><text>本次假装花</text><text class="small-title">¥{{money(event.amount)}}</text></view><view v-if="validDeposit" class="muted">本人确认转存 ¥{{money(event.deposit.amount)}}</view><view class="spacer"></view><text class="stamp">{{event.role==='recipient'?'心意收到':event.state==='pending'?(expired?'请客已过期':'心意待领取'):event.state==='cancelled'?'这次已撤销':'精神上买了'}}</text><view class="footer">{{dateLabel}} · {{event.id.slice(-8).toUpperCase()}}<text class="line-break"> </text>此小票不是付款凭证</view></view>
-<template v-if="event.role==='recipient'"><view class="card" style="margin-top:20px">东西是想象的，心意算数。<text class="line-break"> </text><text class="muted">你不需要付款或回请，收到的礼物不会增加你的转存记录。</text></view><button class="primary" @click="startMine">我也来玩一笔 ↗</button></template>
+<view v-if="event.kind==='treat' && (event.giftMessage || event.role==='recipient')" class="card gift-note" style="margin-top:20px"><view class="muted gift-note-label">{{event.role==='recipient'?'朋友给你捎的话':'你给朋友捎的话'}}</view><view class="body gift-note-text">{{event.giftMessage || '东西是想象的，心意算数。'}}</view></view>
+<template v-if="event.role==='recipient'"><button class="primary" @click="startMine">我也来玩一笔 ↗</button></template>
 <template v-else-if="event.state==='pending' && !expired"><button class="primary" open-type="share" @click="sharePreview">请朋友收下这一份 ↗</button><view class="muted">只请一个人，打开预览不占名额，24 小时内主动接受才算。分享后回来可查看领取结果。</view><button class="link" @click="load">刷新领取状态</button><button class="link" :disabled="busy" @click="change('cancel')">撤销这份请客</button></template>
 <template v-else-if="event.state==='offered'"><button class="primary" :disabled="busy" @click="change('accept')">这份算我买了 ↗</button><button class="link" :disabled="busy" @click="change('skip')">这次先不买</button></template>
 <template v-else-if="event.state==='accepted'"><view class="card" style="margin-top:24px"><text class="small-title">这笔还没存。</text><view class="body" style="margin:12px 0">把钱转到你自己的小荷包或储蓄卡，钱留给自己。</view><view class="row"><text>实际自行转存</text><text>¥</text><view class="field" style="flex:1;min-width:0"><input class="field-input" type="digit" v-model="amount" maxlength="7"/></view></view><button class="secondary" @click="copyAmount">复制金额</button><button class="primary" :disabled="busy" @click="confirm">{{busy?'正在保存…':'我已自行转存'}}</button><view class="muted">这里只记你的确认，不操作账户，也不核验到账。</view></view><button class="link" @click="home">稍后再存</button><button class="link" :disabled="busy" @click="change('playOnly')">这次只玩梗</button></template>
@@ -15,7 +16,7 @@ function confirm(){execute(async()=>{const cents=parseMoney(amount.value);event.
 function change(action){execute(async()=>{event.value=await api(action,{id:eventId});});}
 async function undo(){const r=await uni.showModal({title:'撤销这条本人确认？',content:'只撤销记录，不会退款或移动账户里的钱。',confirmText:'撤销记录'});if(r.confirm)change('undo');}
 function copyAmount(){try{const cents=parseMoney(amount.value);if(cents<1||cents>100000)throw new Error('实际金额需要在 0.01–1000 元之间');uni.setClipboardData({data:money(cents)});}catch(e){notify(e);}}
-function copyStory(){uni.setClipboardData({data:`我在「就当买了」${event.value.role==='recipient'?'收到':'假装买了'}一份${event.value.item}，虚构金额 ¥${money(event.value.amount)}。${event.value.reason} 东西是虚构的，钱留给自己。`});}
+function copyStory(){uni.setClipboardData({data:`我在「就当买了」${event.value.role==='recipient'?'收到':'假装买了'}一份${event.value.item}，虚构金额 ¥${money(event.value.amount)}。${event.value.reason}${event.value.giftMessage ? ' 留言：' + event.value.giftMessage : ''} 东西是虚构的，钱留给自己。`});}
 function sharePreview(){
   // #ifdef H5
   notify(new Error('请在微信小程序中分享请客卡'));
@@ -24,3 +25,8 @@ function sharePreview(){
 onShareAppMessage(()=>event.value?.state==='pending'&&!expired.value?{title:`${event.value.senderName} 请你一份${event.value.item}，心意算数！`,path:'/pages/invite/invite?token='+event.value.token}:{title:'我在「就当买了」演了一笔，钱留给自己。',path:'/pages/home/home'});
 async function startMine(){try{const s=await api('bootstrap');if(s.user.preferences)home();else go('setup');}catch(e){notify(e);}}
 </script>
+
+<style scoped>
+.gift-note-label { margin-bottom: 8px; font-size: 12px; }
+.gift-note-text { overflow-wrap: anywhere; }
+</style>

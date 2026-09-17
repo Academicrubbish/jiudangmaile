@@ -4,6 +4,7 @@ const D = require('./domain');
 const Schedule = require('./schedule');
 const Subscriptions = require('./subscriptions');
 const Shop = require('./shop');
+const Gift = require('./gift-messages');
 const { DISCOVERIES, chooseAutomatic } = require('./story-flavor');
 const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const id = () => crypto.randomBytes(16).toString('hex');
@@ -36,6 +37,7 @@ function createService(store, clock = Date.now, options = {}) {
       item: invitation.item,
       amount: invitation.amount,
       reason: invitation.reason,
+      giftMessage: invitation.giftMessage || '',
       expiresAt: invitation.expiresAt
     };
   }
@@ -158,6 +160,10 @@ function createService(store, clock = Date.now, options = {}) {
       }
       async function create(kind, scheduled = false, slot = null) {
         if (!user.preferences) D.fail('SETUP_REQUIRED', '先给自己安排一个人设');
+        const giftMessage =
+          kind === 'treat'
+            ? Gift.message(input.giftMessage, { optional: true })
+            : '';
         let chosen, mix;
         if (scheduled) {
           mix = chooseAutomatic(
@@ -233,6 +239,7 @@ function createService(store, clock = Date.now, options = {}) {
           sceneSummary:
             kind === 'treat' ? '朋友这么有眼光，值得请一份' : item.summary,
           amount,
+          giftMessage,
           state: scheduled
             ? 'planned'
             : kind === 'treat'
@@ -266,6 +273,7 @@ function createService(store, clock = Date.now, options = {}) {
             item: item.name,
             amount,
             reason: e.reason,
+            giftMessage: e.giftMessage,
             expiresAt: e.expiresAt,
             createdAt: now
           });
@@ -340,6 +348,7 @@ function createService(store, clock = Date.now, options = {}) {
             capabilities: {
               ai: !!options.ai,
               manualShop: true,
+              giftMessages: true,
               subscription: !!options.subscription,
               templateId: options.subscription ? options.templateId : ''
             }
@@ -545,6 +554,27 @@ function createService(store, clock = Date.now, options = {}) {
         case 'pauseReminders': {
           Subscriptions.stop(user, options.templateId);
           result = Subscriptions.status(user, options.templateId);
+          break;
+        }
+        case 'giftMessages': {
+          if (!user.preferences)
+            D.fail('SETUP_REQUIRED', '先给自己安排一个人设');
+          if (
+            input.kind !== 'treat' ||
+            input.amount === undefined ||
+            (input.habit === undefined && input.customItem === undefined)
+          )
+            D.fail('INVALID_ITEM', '先选好请客的商品和金额');
+          const chosen = Shop.manualChoice(
+            input,
+            user.preferences,
+            options.enabledHabits,
+            crypto.randomInt
+          );
+          result = {
+            item: D.itemFor(chosen).name,
+            exclude: Gift.exclusions(input.exclude)
+          };
           break;
         }
         case 'create':

@@ -8,6 +8,7 @@ const ALLOWED = new Set([
   'bootstrap',
   'settings',
   'create',
+  'giftMessages',
   'accept',
   'seen',
   'skip',
@@ -63,6 +64,8 @@ function createRuntime(store, config, deps = {}) {
       return result;
     }
     let result = await service.run(uid, action, input, requestId);
+    if (action === 'giftMessages')
+      return pipeline.giftMessages(uid, requestId, result);
     // Entering the app may catch up an already-due event, even without a recent worker run.
     if (action === 'bootstrap' && config.scheduler.enabled) {
       await workerService.run(uid, 'tick');
