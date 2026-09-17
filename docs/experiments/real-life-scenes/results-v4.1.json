@@ -1,0 +1,172 @@
+{
+  "promptVersion": "jdml-real-scenes-4.1-candidate",
+  "model": "glm-5.2",
+  "createdAt": "2026-09-17T02:59:09.418Z",
+  "live": true,
+  "samples": [
+    {
+      "number": 1,
+      "input": {
+        "persona": "奶茶控",
+        "item_name": "奶茶",
+        "interaction_mode": "self",
+        "scene_kind": "habit",
+        "amount_cents": 1800,
+        "time_band": "afternoon",
+        "writing_seed": "别人随口评价一句，我把馋说成一件非常正经的事",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "馋就馋，扯什么风",
+        "body": "同事说下午茶喝奶茶太甜。我立马点了一杯奶茶，理由是得用亲身数据反驳她。其实她前天说的，我到现在才反驳，是因为刚馋上。",
+        "summary": "为了反驳同事随口一句，拖到馋了才上阵",
+        "action_label": "为正名下单",
+        "amount_cents": 1800,
+        "motif": "argue_appetite_as_principle"
+      },
+      "generationMs": 3174,
+      "usage": {
+        "completion_tokens": 102,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 1127,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1229
+      },
+      "structureValid": true,
+      "reviewMs": 888,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 429,
+        "prompt_tokens_details": {
+          "cached_tokens": 256
+        },
+        "total_tokens": 438
+      },
+      "accepted": true
+    },
+    {
+      "number": 2,
+      "input": {
+        "persona": "咖啡爱好者",
+        "item_name": "咖啡",
+        "interaction_mode": "self",
+        "scene_kind": "habit",
+        "amount_cents": 2200,
+        "time_band": "afternoon",
+        "writing_seed": "把店里一个本来跟我没关系的细节，理解成专程为我准备的",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "杯子响了一声",
+        "body": "店员敲了下咖啡杯沿示意取餐，我听着像开赛信号。其实在家喝也行，但那个声音家里敲不出来。咖啡必须配这一下，不然没味儿。",
+        "summary": "为了店员敲杯那声响出门买咖啡",
+        "action_label": "就当买了这杯",
+        "amount_cents": 2200,
+        "motif": "overheard_cue_feels_purpose_built"
+      },
+      "generationMs": 19821,
+      "usage": {
+        "completion_tokens": 117,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 1128,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1245
+      },
+      "error": "SCENE_CONTENT",
+      "accepted": false
+    },
+    {
+      "number": 3,
+      "input": {
+        "persona": "爱买丑东西",
+        "item_name": "丑猫抱枕",
+        "interaction_mode": "self",
+        "scene_kind": "daily_joy",
+        "amount_cents": 2500,
+        "time_band": "evening",
+        "writing_seed": "不是喜爱可爱而是特意要丑，想出一个我会真的用上的歪用途",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "丑得能镇宅的抱枕",
+        "body": "朋友说这抱枕长得像我前任。我一看确实有那股说不出的别扭劲，当场拍下，准备放沙发C位当聊天破冰器——客人一进门先被它震住，谁还好意思挑我家装修。",
+        "summary": "朋友说像前任，必须买回来镇沙发",
+        "action_label": "就当买来镇宅",
+        "amount_cents": 2500,
+        "motif": "ugly_as_icebreaker"
+      },
+      "generationMs": 3504,
+      "usage": {
+        "completion_tokens": 111,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 1136,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1247
+      },
+      "error": "SCENE_CONTENT",
+      "accepted": false
+    },
+    {
+      "number": 4,
+      "input": {
+        "persona": "喜欢请朋友喝奶茶",
+        "item_name": "奶茶",
+        "interaction_mode": "treat",
+        "scene_kind": "kindness",
+        "amount_cents": 1600,
+        "time_band": "afternoon",
+        "writing_seed": "朋友一句夸奖让我立刻想请他一杯，恰好推翻了他夸的那个优点",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "一杯奶茶推翻一个优点",
+        "body": "朋友夸我情绪稳定，我听完当场想请他杯奶茶。不是感谢，是证明我大方到随手请人。情绪稳定的人不会因为一句夸奖就掏钱吧。",
+        "summary": "被夸情绪稳定，立刻花钱推翻它",
+        "action_label": "就当请了",
+        "amount_cents": 1600,
+        "motif": "compliment_backfires"
+      },
+      "generationMs": 2811,
+      "usage": {
+        "completion_tokens": 92,
+        "prompt_tokens": 1136,
+        "prompt_tokens_details": {
+          "cached_tokens": 256
+        },
+        "total_tokens": 1228
+      },
+      "structureValid": true,
+      "reviewMs": 1528,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 426,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 435
+      },
+      "accepted": true
+    }
+  ]
+}

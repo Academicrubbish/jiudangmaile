@@ -1,0 +1,367 @@
+{
+  "promptVersion": "jdml-abstract-3.0-candidate",
+  "model": "glm-5.2",
+  "createdAt": "2026-09-17T02:48:42.894Z",
+  "live": true,
+  "samples": [
+    {
+      "number": 1,
+      "input": {
+        "persona": "奶茶",
+        "item_name": "空气奶茶",
+        "interaction_mode": "self",
+        "scene_kind": "habit",
+        "amount_cents": 1800,
+        "time_band": "evening",
+        "humor_device": "过度隆重，把小事当成大事处理",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "封杯大典",
+        "body": "晚上口渴，决定买杯空气奶茶。我给它配了杯垫、吸管和小伞。最后用胶带把杯口封死。毕竟空气跑掉就不是奶茶了，只是风。",
+        "summary": "口渴买空气奶茶，封杯防止空气逃跑",
+        "action_label": "封杯下单",
+        "amount_cents": 1800,
+        "motif": "sealing_air"
+      },
+      "generationMs": 3594,
+      "usage": {
+        "completion_tokens": 110,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 1102,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1212
+      },
+      "structureValid": true,
+      "reviewMs": 926,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 573,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 582
+      },
+      "accepted": true
+    },
+    {
+      "number": 2,
+      "input": {
+        "persona": "虚构老烟客",
+        "item_name": "空气烟",
+        "interaction_mode": "self",
+        "scene_kind": "habit",
+        "amount_cents": 2000,
+        "time_band": "afternoon",
+        "humor_device": "反向实用，认真解决根本不存在的问题",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "给手指一个交代",
+        "body": "下午三点手痒，没东西夹着不对劲。买根空气烟，叼嘴上点了个寂寞，灰弹得特别认真。同事问在抽什么，说在戒。哪一步不算戒？",
+        "summary": "手痒买了根空气烟，灰弹得比真烟还讲究",
+        "action_label": "假装点一根",
+        "amount_cents": 2000,
+        "motif": "reverse_utility"
+      },
+      "generationMs": 3057,
+      "usage": {
+        "completion_tokens": 119,
+        "prompt_tokens": 1106,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1225
+      },
+      "structureValid": true,
+      "reviewMs": 23821,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 583,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 592
+      },
+      "accepted": true
+    },
+    {
+      "number": 3,
+      "input": {
+        "persona": "奶茶",
+        "item_name": "空气奶茶",
+        "interaction_mode": "treat",
+        "scene_kind": "kindness",
+        "amount_cents": 1600,
+        "time_band": "afternoon",
+        "humor_device": "身份错位，物件获得荒唐但具体的地位",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "空气奶茶的职务晋升",
+        "body": "下午打算请朋友喝空气奶茶，结果它觉得自己已经是主管级饮品，要求单独坐一把椅子。我只好给它拉了个座，朋友站着喝了口白开水，说没关系，主管嘛。",
+        "summary": "请朋友喝空气奶茶，它非要坐主位，朋友站着喝水还说没关系。",
+        "action_label": "假装请它一杯",
+        "amount_cents": 1600,
+        "motif": "absent_thing_promoted"
+      },
+      "generationMs": 4039,
+      "usage": {
+        "completion_tokens": 104,
+        "prompt_tokens": 1108,
+        "prompt_tokens_details": {
+          "cached_tokens": 1024
+        },
+        "total_tokens": 1212
+      },
+      "error": "SCENE_SUMMARY",
+      "accepted": false
+    },
+    {
+      "number": 4,
+      "input": {
+        "persona": "微醺想象家",
+        "item_name": "空气小酒",
+        "interaction_mode": "self",
+        "scene_kind": "daily_joy",
+        "amount_cents": 1500,
+        "time_band": "evening",
+        "humor_device": "无用仪式，为不值得庆祝的小事庆祝",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "庆祝今天没踩到水坑",
+        "body": "今天走路没踩到任何水坑。这值得开一瓶空气小酒。我拉开空气瓶塞，倒进空气杯子，空气碰空气，干了。水坑根本不知道自己输给了谁。",
+        "summary": "为没踩到水坑开了一瓶空气小酒庆祝",
+        "action_label": "也来假装开一瓶",
+        "amount_cents": 1500,
+        "motif": "unwarranted_celebration"
+      },
+      "generationMs": 2557,
+      "usage": {
+        "completion_tokens": 105,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 1110,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1215
+      },
+      "structureValid": true,
+      "reviewMs": 876,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 594,
+        "prompt_tokens_details": {
+          "cached_tokens": 384
+        },
+        "total_tokens": 603
+      },
+      "accepted": true
+    },
+    {
+      "number": 5,
+      "input": {
+        "persona": "空气嚼嚼客",
+        "item_name": "空气槟榔",
+        "interaction_mode": "self",
+        "scene_kind": "habit",
+        "amount_cents": 1000,
+        "time_band": "afternoon",
+        "humor_device": "物件拟人，给它一个没必要的安排",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "给空气槟榔找了个嘴",
+        "body": "下午嘴闲，买了一颗空气槟榔。嚼了五分钟，腮帮子酸了，东西还在。我把它搁桌上，配了杯空气茶，假装请它歇歇。它嚼了我一下午，轮到它歇了。",
+        "summary": "嚼了一下午空气槟榔，腮帮子酸了决定请它歇歇",
+        "action_label": "我也嚼颗空气",
+        "amount_cents": 1000,
+        "motif": "object_role_reversal"
+      },
+      "generationMs": 3198,
+      "usage": {
+        "completion_tokens": 136,
+        "prompt_tokens": 1109,
+        "prompt_tokens_details": {
+          "cached_tokens": 1024
+        },
+        "total_tokens": 1245
+      },
+      "error": "SCENE_SUMMARY",
+      "accepted": false
+    },
+    {
+      "number": 6,
+      "input": {
+        "persona": "咖啡",
+        "item_name": "空气咖啡",
+        "interaction_mode": "self",
+        "scene_kind": "habit",
+        "amount_cents": 2200,
+        "time_band": "morning",
+        "humor_device": "字面理解，把日常说法当成实物处理",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "给醒脑留个空座",
+        "body": "早上脑子还没开机，决定先来杯空气咖啡。假装让店员别加糖，杯子递过来，轻到像没接过。我说没关系，关键就是这个劲儿——零卡零因零内容，脑子根本没醒，但仪式已经走完了。",
+        "summary": "脑子没醒先走完喝咖啡的仪式",
+        "action_label": "假装先来一杯",
+        "amount_cents": 2200,
+        "motif": "literal_empty_cup"
+      },
+      "generationMs": 3428,
+      "usage": {
+        "completion_tokens": 109,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 1104,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1213
+      },
+      "structureValid": true,
+      "reviewMs": 1099,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 591,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 600
+      },
+      "accepted": true
+    },
+    {
+      "number": 7,
+      "input": {
+        "persona": "收集丑东西",
+        "item_name": "空气丑猫摆件",
+        "interaction_mode": "self",
+        "scene_kind": "daily_joy",
+        "amount_cents": 1200,
+        "time_band": "afternoon",
+        "humor_device": "审美反转，以一本正经的理由欣赏离谱外观",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "丑得理直气壮",
+        "body": "空气丑猫摆件摆桌上，嘴歪眼斜，像个被生活捶过的门环。我假装花十二块请它镇守电脑，它丑得坦坦荡荡，丑得从不道歉。我决定向它学习。",
+        "summary": "假装请一只丑猫镇守电脑，学它丑得理直气壮",
+        "action_label": "假装请它镇桌",
+        "amount_cents": 1200,
+        "motif": "aesthetic_reversal"
+      },
+      "generationMs": 4115,
+      "usage": {
+        "completion_tokens": 131,
+        "prompt_tokens": 1113,
+        "prompt_tokens_details": {
+          "cached_tokens": 1024
+        },
+        "total_tokens": 1244
+      },
+      "structureValid": true,
+      "reviewMs": 801,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 604,
+        "prompt_tokens_details": {
+          "cached_tokens": 256
+        },
+        "total_tokens": 613
+      },
+      "accepted": true
+    },
+    {
+      "number": 8,
+      "input": {
+        "persona": "虚构老烟客",
+        "item_name": "空气烟",
+        "interaction_mode": "self",
+        "scene_kind": "daily_joy",
+        "amount_cents": 2000,
+        "time_band": "evening",
+        "humor_device": "过度隆重，小道具配上完全不必要的排场",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "空气烟的接灰仪式",
+        "body": "晚上想抽烟，但手边只有空气烟。拿了个水晶烟灰缸摆好，又把台灯调成暖光。空气烟弹了弹灰，烟灰也是空气的。缸倒是确实很干净。",
+        "summary": "给不存在的烟灰配了个像样的烟灰缸",
+        "action_label": "假装点一根",
+        "amount_cents": 2000,
+        "motif": "phantom_ashtray_protocol"
+      },
+      "generationMs": 2482,
+      "usage": {
+        "completion_tokens": 104,
+        "prompt_tokens": 1110,
+        "prompt_tokens_details": {
+          "cached_tokens": 1024
+        },
+        "total_tokens": 1214
+      },
+      "structureValid": true,
+      "reviewMs": 1003,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 591,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 600
+      },
+      "accepted": true
+    }
+  ],
+  "humanReview": {
+    "status": "pending_user_approval",
+    "notes": {
+      "1": "建议评审：把空气奶茶封死以免变成风，具体且反转清楚。",
+      "2": "暂不选：夹烟、弹灰的老梗，抽象程度不足；还出现戒烟表述。",
+      "3": "淘汰：梗概超长，且把朋友已参与写成事实。",
+      "4": "淘汰：用没踩水坑来庆祝，仍以负面事件为起点。",
+      "5": "淘汰：梗概超长、腮帮子酸不合要求。",
+      "6": "暂不选：停在走完仪式的解释层面，笑点偏弱。",
+      "7": "淘汰：十二块为额外报价；被生活捶过偏负面。价格校验已补强。",
+      "8": "暂不选：烟灰缸干净是可用的小包袱，但不足够新鲜。"
+    }
+  }
+}

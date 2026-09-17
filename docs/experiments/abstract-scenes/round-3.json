@@ -1,0 +1,184 @@
+{
+  "promptVersion": "jdml-abstract-3.2-candidate",
+  "model": "glm-5.2",
+  "createdAt": "2026-09-17T02:51:51.382Z",
+  "live": true,
+  "samples": [
+    {
+      "number": 1,
+      "input": {
+        "persona": "虚构老烟客",
+        "item_name": "空气烟",
+        "interaction_mode": "self",
+        "scene_kind": "habit",
+        "amount_cents": 2000,
+        "time_band": "afternoon",
+        "humor_device": "反向实用，给不存在的东西添一个看得见的麻烦但没有坏事",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "给空气烟找火",
+        "body": "假装掏出空气烟，满兜翻火机。找了三分钟，发现它压根不用点。最后还是借了个火，说习惯了，不给它点一下叼着不像样。",
+        "summary": "给不用点的烟借了个火",
+        "action_label": "假装来一根",
+        "amount_cents": 2000,
+        "motif": "unnecessary_ignition"
+      },
+      "generationMs": 2728,
+      "usage": {
+        "completion_tokens": 108,
+        "prompt_tokens": 1544,
+        "prompt_tokens_details": {
+          "cached_tokens": 1280
+        },
+        "total_tokens": 1652
+      },
+      "structureValid": true,
+      "reviewMs": 1302,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 633,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 642
+      },
+      "accepted": true
+    },
+    {
+      "number": 2,
+      "input": {
+        "persona": "空气嚼嚼客",
+        "item_name": "空气槟榔",
+        "interaction_mode": "self",
+        "scene_kind": "habit",
+        "amount_cents": 1000,
+        "time_band": "afternoon",
+        "humor_device": "字面理解，做一个完全没必要的小动作",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "空气槟榔找垃圾桶",
+        "body": "我假装嚼了一颗空气槟榔，腮帮子鼓了两下，走到垃圾桶旁边吐进去。对着垃圾桶说了声谢谢老板。垃圾桶没给回应，但它确实收了。",
+        "summary": "对着垃圾桶说谢谢老板",
+        "action_label": "假装嚼一颗",
+        "amount_cents": 1000,
+        "motif": "吐空气也要找垃圾桶"
+      },
+      "generationMs": 2621,
+      "usage": {
+        "completion_tokens": 88,
+        "prompt_tokens": 1542,
+        "prompt_tokens_details": {
+          "cached_tokens": 1408
+        },
+        "total_tokens": 1630
+      },
+      "error": "SCENE_MOTIF",
+      "accepted": false
+    },
+    {
+      "number": 3,
+      "input": {
+        "persona": "收集丑东西",
+        "item_name": "空气丑猫摆件",
+        "interaction_mode": "self",
+        "scene_kind": "daily_joy",
+        "amount_cents": 1200,
+        "time_band": "afternoon",
+        "humor_device": "审美反转，歪打正着的用途，不能换成咨询或医疗服务",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "丑到能防灾",
+        "body": "下午阳光斜照，假装买一只空气丑猫摆件搁窗台上。它丑得每只蚊子飞过都要回头看一眼，然后撞玻璃上。",
+        "summary": "丑到让蚊子撞玻璃",
+        "action_label": "假装请丑猫镇场",
+        "amount_cents": 1200,
+        "motif": "ugliness_as_function"
+      },
+      "generationMs": 2716,
+      "usage": {
+        "completion_tokens": 83,
+        "prompt_tokens": 1549,
+        "prompt_tokens_details": {
+          "cached_tokens": 1408
+        },
+        "total_tokens": 1632
+      },
+      "structureValid": true,
+      "reviewMs": 813,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 632,
+        "prompt_tokens_details": {
+          "cached_tokens": 256
+        },
+        "total_tokens": 641
+      },
+      "accepted": true
+    },
+    {
+      "number": 4,
+      "input": {
+        "persona": "奶茶",
+        "item_name": "空气奶茶",
+        "interaction_mode": "self",
+        "scene_kind": "habit",
+        "amount_cents": 1800,
+        "time_band": "evening",
+        "humor_device": "反向实用，特别认真地保障一个不需要保障的东西",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "给空气奶茶贴保质期贴纸",
+        "body": "晚上八点，我拿空气奶茶对着客厅灯照了三秒，认真确认没过期。毕竟它只存在一秒，贴纸刚按下去保质期就到了。",
+        "summary": "空气奶茶保质期比贴纸短",
+        "action_label": "假装来一杯",
+        "amount_cents": 1800,
+        "motif": "shelf_life_shorter_than_label"
+      },
+      "generationMs": 2499,
+      "usage": {
+        "completion_tokens": 110,
+        "prompt_tokens": 1538,
+        "prompt_tokens_details": {
+          "cached_tokens": 1408
+        },
+        "total_tokens": 1648
+      },
+      "structureValid": true,
+      "reviewMs": 819,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 630,
+        "prompt_tokens_details": {
+          "cached_tokens": 256
+        },
+        "total_tokens": 639
+      },
+      "accepted": true
+    }
+  ],
+  "humanReview": {
+    "status": "pending_user_approval",
+    "notes": {
+      "1": "暂不选：借火虽合规，但仍是普通生活笑话，力度不够。",
+      "2": "淘汰：motif 输出中文，结构校验失败；剧情收尾较弱。",
+      "3": "淘汰：防灾、蚊子撞玻璃不合禁忌要求，模型复核再次漏判。防灾表述已补程序拦截。",
+      "4": "建议评审：贴纸还没贴完就过期，空气商品的无用逻辑明确。"
+    }
+  }
+}

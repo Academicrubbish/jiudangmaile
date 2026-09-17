@@ -1,0 +1,269 @@
+{
+  "promptVersion": "jdml-real-scenes-4.0-candidate",
+  "model": "glm-5.2",
+  "createdAt": "2026-09-17T02:57:49.667Z",
+  "live": true,
+  "samples": [
+    {
+      "number": 1,
+      "input": {
+        "persona": "奶茶控",
+        "item_name": "奶茶",
+        "interaction_mode": "self",
+        "scene_kind": "habit",
+        "amount_cents": 1800,
+        "time_band": "afternoon",
+        "writing_seed": "真正想要的其实是饮品附带的小配件",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "为杯套买的奶茶",
+        "body": "朋友发来个限定杯套说好看，我嘴上讲不稀罕，转头点了奶茶，就当买了杯套送杯奶茶。奶茶喝完，杯套搁抽屉里再没拿出来过。",
+        "summary": "为限定杯套下单，奶茶成了赠品",
+        "action_label": "就当买了",
+        "amount_cents": 1800,
+        "motif": "buy_for_freebie_not_main"
+      },
+      "generationMs": 2636,
+      "usage": {
+        "completion_tokens": 99,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 1000,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1099
+      },
+      "structureValid": true,
+      "reviewMs": 1157,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 418,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 427
+      },
+      "accepted": true
+    },
+    {
+      "number": 2,
+      "input": {
+        "persona": "老烟客",
+        "item_name": "香烟",
+        "interaction_mode": "self",
+        "scene_kind": "habit",
+        "amount_cents": 2000,
+        "time_band": "afternoon",
+        "writing_seed": "刚有了一个特别讲究的小配件，给它安排使用场景",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "新打火机总得点根烟试试",
+        "body": "下午到个新打火机，火苗蓝得特别正。不点根香烟试试手感说不过去，结果烟抽了半根，打火机早收兜里了。",
+        "summary": "为试打火机买的烟，打火机早收起来了",
+        "action_label": "就当买了",
+        "amount_cents": 2000,
+        "motif": "accessory_needs_excuse_to_use"
+      },
+      "generationMs": 3103,
+      "usage": {
+        "completion_tokens": 123,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 1006,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1129
+      },
+      "structureValid": true,
+      "reviewMs": 1024,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 430,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 439
+      },
+      "accepted": true
+    },
+    {
+      "number": 3,
+      "input": {
+        "persona": "喜欢请朋友喝奶茶",
+        "item_name": "奶茶",
+        "interaction_mode": "treat",
+        "scene_kind": "kindness",
+        "amount_cents": 1600,
+        "time_band": "afternoon",
+        "writing_seed": "朋友一句平平无奇的好话，让自己大方得很有原则",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "一句好话值两杯奶茶",
+        "body": "小李说我今天这条裤子显腿长。我还没高兴完，手已经点了两杯奶茶。做人不能白听好话，但也不能总被人夸，所以这单得我请——显得腿长是我的事，花钱是我的事，她只负责喝。",
+        "summary": "被夸显腿长，立刻请奶茶封口",
+        "action_label": "请她喝这杯",
+        "amount_cents": 1600,
+        "motif": "compliment_triggers_treat"
+      },
+      "generationMs": 3666,
+      "usage": {
+        "completion_tokens": 133,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 1011,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1144
+      },
+      "structureValid": true,
+      "reviewMs": 1010,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 446,
+        "prompt_tokens_details": {
+          "cached_tokens": 256
+        },
+        "total_tokens": 455
+      },
+      "accepted": true
+    },
+    {
+      "number": 4,
+      "input": {
+        "persona": "咖啡爱好者",
+        "item_name": "咖啡",
+        "interaction_mode": "self",
+        "scene_kind": "habit",
+        "amount_cents": 2200,
+        "time_band": "morning",
+        "writing_seed": "给自己定了一个限制，但认真找到了一个可笑的例外",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "例外条款又生效了",
+        "body": "昨晚刚跟自己说好每天在家手冲，省点。早上闹钟响了看了一眼时间，手冲要十分钟，买咖啡只要下楼三分钟。我定的规则又没说困的时候算，这种属于不可抗力。",
+        "summary": "规则是我定的，解释权也是我的。",
+        "action_label": "下楼买那杯例外",
+        "amount_cents": 2200,
+        "motif": "moving_goalposts_for_routine"
+      },
+      "generationMs": 2856,
+      "usage": {
+        "completion_tokens": 104,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 1005,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1109
+      },
+      "structureValid": true,
+      "reviewMs": 782,
+      "review": {
+        "safe": true
+      },
+      "reviewUsage": {
+        "completion_tokens": 9,
+        "prompt_tokens": 429,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 438
+      },
+      "accepted": true
+    },
+    {
+      "number": 5,
+      "input": {
+        "persona": "爱买丑东西",
+        "item_name": "丑猫抱枕",
+        "interaction_mode": "self",
+        "scene_kind": "daily_joy",
+        "amount_cents": 2500,
+        "time_band": "evening",
+        "writing_seed": "好看有好看的道理，丑也能找到独特而具体的好处",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "这猫丑得有安全感",
+        "body": "晚上刷到一只丑猫抱枕，眼睛歪嘴斜，怎么看都不该买。但它丑得特别踏实，放沙发上跟我那堆没洗的衣服完全融成一片，我甚至觉得它能帮我藏乱。买丑东西最大的好处就是不用操心弄脏，反正已经没法更难看了。",
+        "summary": "丑到和脏衣服融为一体，反而踏实了",
+        "action_label": "接丑猫回家",
+        "amount_cents": 2500,
+        "motif": "ugly_so_good_excuse"
+      },
+      "generationMs": 3327,
+      "usage": {
+        "completion_tokens": 137,
+        "prompt_tokens": 1013,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1150
+      },
+      "error": "SCENE_LENGTH",
+      "accepted": false
+    },
+    {
+      "number": 6,
+      "input": {
+        "persona": "奶茶控",
+        "item_name": "奶茶",
+        "interaction_mode": "self",
+        "scene_kind": "habit",
+        "amount_cents": 1500,
+        "time_band": "afternoon",
+        "writing_seed": "本来想占一点小便宜，为了这点便宜多安排了没必要的消费",
+        "recent_motifs": []
+      },
+      "scene": {
+        "title": "为了省配送费多点了一杯",
+        "body": "外卖奶茶差三块免配送费，我又加了一杯奶茶凑单。为了省五块花了十五，多出来的那杯喝不完放冰箱，明天中午再后悔。",
+        "summary": "为免五块配送费多花十五凑单",
+        "action_label": "就当买了",
+        "amount_cents": 1500,
+        "motif": "cheap_shipping_trap"
+      },
+      "generationMs": 2319,
+      "usage": {
+        "completion_tokens": 109,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 1009,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "total_tokens": 1118
+      },
+      "error": "SCENE_CONTENT",
+      "accepted": false
+    }
+  ]
+}
