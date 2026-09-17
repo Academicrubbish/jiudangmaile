@@ -42,17 +42,19 @@ function createRuntime(store, config, deps = {}) {
   async function refreshed(
     uid,
     event,
-    { background = false, forceFallback = false } = {}
+    { background = false, forceFallback = false, deadlineAt } = {}
   ) {
     if (!event) return null;
     if (event.sceneReady && !needsStyleRepair(event)) return event;
     const ready = await pipeline.ensureReady(event.id, {
       background,
-      forceFallback
+      forceFallback,
+      deadlineAt
     });
     return ready ? D.publicEvent(ready, uid) : null;
   }
   async function call(uid, action, input = {}, requestId = '') {
+    const deadlineAt = clock() + 22000;
     if (!input || typeof input !== 'object' || Array.isArray(input))
       D.fail('INVALID_INPUT', '操作参数格式无效');
     if (!ALLOWED.has(action)) D.fail('UNKNOWN_ACTION', '暂不支持这个操作');
@@ -72,9 +74,12 @@ function createRuntime(store, config, deps = {}) {
       result = await service.run(uid, 'bootstrap');
     }
     if (action === 'bootstrap') {
-      result.current = await refreshed(uid, result.current);
-      result.randomEvent = await refreshed(uid, result.randomEvent);
-    } else if (result?.id && result?.item) return refreshed(uid, result);
+      result.current = await refreshed(uid, result.current, { deadlineAt });
+      result.randomEvent = await refreshed(uid, result.randomEvent, {
+        deadlineAt
+      });
+    } else if (result?.id && result?.item)
+      return refreshed(uid, result, { deadlineAt });
     return result;
   }
   async function tick() {
@@ -87,7 +92,11 @@ function createRuntime(store, config, deps = {}) {
       notices = 0,
       failed = 0;
     for (const user of users) {
-      if (clock() - started > 85000) break;
+      if (
+        clock() - started >
+        Math.max(0, 100000 - config.ai.backgroundBudgetMs)
+      )
+        break;
       try {
         const result = await workerService.run(user.id, 'tick');
         if (result.event) {

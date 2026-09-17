@@ -10,10 +10,23 @@ function normalizeConfig(input = {}) {
       defaults.enabledHabits.includes(h)
     )
   };
+  // Migrate the old shared six-call default. Explicit legacy disable remains a disable.
+  const oldLimit = input.ai?.maxCallsPerUserDay;
+  if (oldLimit !== undefined && Number(oldLimit) !== 6) {
+    if (input.ai?.maxSceneCallsPerUserDay === undefined)
+      config.ai.maxSceneCallsPerUserDay = oldLimit;
+    if (
+      Number(oldLimit) === 0 &&
+      input.ai?.maxGiftCallsPerUserDay === undefined
+    )
+      config.ai.maxGiftCallsPerUserDay = 0;
+  }
+  delete config.ai.maxCallsPerUserDay;
   for (const [key, min, max] of [
     ['interactiveBudgetMs', 500, 15000],
     ['backgroundBudgetMs', 500, 60000],
-    ['maxCallsPerUserDay', 0, 6],
+    ['maxSceneCallsPerUserDay', 0, 200],
+    ['maxGiftCallsPerUserDay', 0, 200],
     ['maxCallsGlobalDay', 0, 10000]
   ]) {
     const n = Number(config.ai[key]);

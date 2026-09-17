@@ -5,10 +5,11 @@
     "apiKey": "",
     "model": "glm-5.2",
     "thinking": false,
-    "interactiveBudgetMs": 8000,
-    "backgroundBudgetMs": 25000,
-    "maxCallsPerUserDay": 6,
-    "maxCallsGlobalDay": 2000
+    "interactiveBudgetMs": 15000,
+    "backgroundBudgetMs": 40000,
+    "maxCallsGlobalDay": 2000,
+    "maxSceneCallsPerUserDay": 40,
+    "maxGiftCallsPerUserDay": 20
   },
   "scheduler": {
     "enabled": true,
@@ -23,5 +24,10 @@
       "thing4": "只是虚构消费，不会扣款"
     }
   },
-  "enabledHabits": ["milk_tea", "smoke", "drink", "betel"]
+  "enabledHabits": [
+    "milk_tea",
+    "smoke",
+    "drink",
+    "betel"
+  ]
 }

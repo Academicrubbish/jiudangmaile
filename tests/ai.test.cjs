@@ -100,7 +100,7 @@ test('语义审核拒绝后使用预审故事，不输出危险候选', async ()
     post: async () => response(++calls % 2 ? scene : { safe: false })
   });
   const e = await p.ensureReady(f.e.id);
-  assert.equal(e.source, 'reviewed-library-v2');
+  assert.equal(e.source, 'reviewed-library-v4');
   assert.notEqual(e.reason, scene.body);
   assert.equal(calls, 4);
 });
@@ -325,7 +325,7 @@ test('未接受的旧个人事件原地修复，不重调模型、不改变金�
   assert.equal(e.id, f.e.id);
   assert.equal(e.amount, f.e.amount);
   assert.equal(e.item, '奶茶');
-  assert.equal(e.generation.promptVersion, 'jdml-scene-5.1');
+  assert.equal(e.generation.promptVersion, require(core + 'prompts').VERSION);
   assert.equal(e.generation.repairedFromVersion, 'jdml-scene-2.2');
   assert.doesNotMatch(e.reason, /空气奶茶|假装/);
   assert.deepEqual(await p.ensureReady(f.e.id), e);

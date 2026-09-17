@@ -1,10 +1,11 @@
 'use strict';
 const { postJSON } = require('./http');
 const { GENERATE, REVIEW, VERSION } = require('./prompts');
-const { itemFor, dateKey, ITEMS } = require('./domain');
+const { dateKey, ITEMS } = require('./domain');
 const { validSceneSummary } = require('./subscription-template');
 const crypto = require('crypto');
 const Gift = require('./gift-messages');
+const Library = require('./scene-library');
 const digest = (text) => crypto.createHash('sha256').update(text).digest('hex');
 const SIZE = (text) => [...text].length;
 const BAD =
@@ -43,7 +44,7 @@ function similar(a, b) {
     y = pairs(b);
   let intersection = 0;
   for (const pair of x) if (y.has(pair)) intersection++;
-  return intersection / Math.max(1, x.size + y.size - intersection) > 0.82;
+  return intersection / Math.max(1, x.size + y.size - intersection) > 0.68;
 }
 function validateScene(scene, input, recent = []) {
   const expected = [
@@ -86,17 +87,46 @@ function validateScene(scene, input, recent = []) {
     throw new Error('SCENE_CONTENT');
   if (
     recent.some(
-      (r) => similar(r.body || '', scene.body) || r.motif === scene.motif
+      (r) =>
+        similar(
+          (r.body || '').split(r.item || input.item_name).join('商品'),
+          scene.body.split(input.item_name).join('商品')
+        ) || r.motif === scene.motif
     )
   )
     throw new Error('SCENE_DUPLICATE');
   return scene;
 }
-function sceneInput(event, recent = []) {
+function sceneInput(event, recent = [], attempt = 0) {
   const hour = new Date(
     (event.dueAt || event.createdAt) + 8 * 3600000
   ).getUTCHours();
   const n = parseInt(digest(event.id).slice(0, 4), 16);
+  const angles = [
+    ['public_opinion', '别人随口的一句评价，引出一个出人意料的购买决定'],
+    ['small_detail', '在普通细节里发现一个别人不会在意的用途'],
+    ['self_rule', '给自己定过的规矩，今天被自己认真钻了空子'],
+    ['conversation', '为了让一段普通聊天能继续，安排了一次小消费'],
+    ['evidence', '想证明一个很小的观点，却认真买来做证据'],
+    ['taste', '被别人看穿偏好，嘴上不承认，决定却很诚实'],
+    ['preparation', '提前为一件还没确定的小事做了过分具体的准备'],
+    ['wording', '认真咬文嚼字，把一句普通介绍理解成了购买理由'],
+    ['camera', '一个拍照或画面的小细节，让人想安排这件东西'],
+    ['comparison', '做了一个不太公平的小比较，还觉得自己的选择很客观'],
+    ['unfinished', '为了给之前做过的一点功课一个交代，决定买下来'],
+    ['reunion', '和熟人相处时的一点默契，变成了一个好笑的购买理由']
+  ];
+  const used = new Set(recent.slice(-6).map((r) => r.creativeAngle));
+  const fresh = angles.filter(([key]) => !used.has(key));
+  const pool = fresh.length ? fresh : angles;
+  const angle = pool[(n + attempt) % pool.length];
+  const sameItem = recent.filter((r) => r.item === storyItem(event)).slice(-5);
+  const other = recent.filter((r) => !sameItem.includes(r)).slice(-5);
+  const stories = [...other, ...sameItem].map((r) => ({
+    item: String(r.item || '').slice(0, 24),
+    body: String(r.body || '').slice(0, 180),
+    motif: String(r.motif || '').slice(0, 60)
+  }));
   return {
     persona: event.habitName || event.habit,
     scene_source: event.sceneSource || 'habit',
@@ -112,37 +142,45 @@ function sceneInput(event, recent = []) {
         : event.sceneSource === 'discovery'
           ? 'daily_joy'
           : 'habit',
-    writing_seed: [
-      '为一个不值得的小细节找了很充分的理由',
-      '给自己定的规矩找一个可笑的例外',
-      '把一句随口的话当成购买的充分依据',
-      '想买的东西突然有了没必要的用途',
-      '试图证明自己很有原则，决定却反了过来',
-      '一本正经地给自己已经想买的东西找理由'
-    ][n % 6],
+    creative_angle: angle[0],
+    writing_seed: angle[1],
+    setting_hint: [
+      '路过街边小店',
+      '整理房间时',
+      '翻看商品页面',
+      '朋友聊天时',
+      '准备周末安排',
+      '工作间隙'
+    ][Math.floor(n / 13) % 6],
+    relationship_hint: [
+      '自己和自己的小规矩',
+      '一个熟悉的朋友',
+      '群聊里的随口一句',
+      '来家里做客的朋友',
+      '一起共事的同事'
+    ][Math.floor(n / 79) % 5],
+    recent_scenes: stories,
     recent_motifs: recent
       .slice(-10)
       .map((r) => r.motif)
       .filter(Boolean)
   };
 }
-function fallback(event) {
-  const item = itemFor({
-    key: event.habit,
-    name: event.habitName || event.item
-  });
-  const treat = event.kind === 'treat';
-  const name = storyItem(event);
-  return {
-    title: treat ? '维护一下口碑' : item.title,
-    body: treat
-      ? `朋友说我最近挺会过日子，我想请他一份${name}。这么有眼光的人，值得让他下次继续说。`
-      : item.reason.split(item.name).join(name),
-    summary: treat ? '朋友这么有眼光，值得请一份' : item.summary,
-    action_label: treat ? '这份我来请' : item.action,
-    amount_cents: event.amount,
-    motif: 'fallback_' + event.habit
-  };
+function fallback(event, recent = []) {
+  return Library.choose(event, recent, similar);
+}
+function failureCode(error) {
+  const code = error?.message || '';
+  return /^(SCENE_[A-Z_]+|AI_[A-Z_]+|GIFT_REVIEW|SEMANTIC_REJECTED|HTTP_[0-9]{3}|TIMEOUT|NETWORK_ERROR|INVALID_JSON)$/.test(
+    code
+  )
+    ? code
+    : 'AI_FAILED';
+}
+function recentFor(user, now) {
+  return (user?.recentScenes || [])
+    .filter((r) => r.at > now - 7 * 86400000)
+    .slice(-30);
 }
 
 function createScenePipeline(
@@ -150,7 +188,7 @@ function createScenePipeline(
   config,
   { clock = Date.now, post = postJSON } = {}
 ) {
-  async function quota(uid) {
+  async function quota(uid, purpose) {
     return store.transaction(async (tx) => {
       const day = dateKey(clock()),
         uidKey = digest(uid + ':' + day),
@@ -168,21 +206,29 @@ function createScenePipeline(
         calls: 0,
         createdAt: clock()
       };
-      if (
-        u.calls >= config.ai.maxCallsPerUserDay ||
-        g.calls >= config.ai.maxCallsGlobalDay
-      )
-        return false;
+      u.sceneCalls = u.sceneCalls ?? u.calls;
+      u.giftCalls = u.giftCalls ?? 0;
+      const field = purpose === 'gift' ? 'giftCalls' : 'sceneCalls';
+      const limit =
+        purpose === 'gift'
+          ? config.ai.maxGiftCallsPerUserDay
+          : config.ai.maxSceneCallsPerUserDay;
+      if (g.calls >= config.ai.maxCallsGlobalDay) return 'AI_GLOBAL_QUOTA';
+      if (u[field] >= limit)
+        return purpose === 'gift' ? 'AI_GIFT_QUOTA' : 'AI_SCENE_QUOTA';
+      u[field]++;
       u.calls++;
       g.calls++;
       await tx.put('aiUsage', uidKey, u);
       await tx.put('aiUsage', globalKey, g);
-      return true;
+      return null;
     });
   }
-  async function chat(uid, messages, deadline, temperature) {
+  async function chat(uid, messages, deadline, temperature, purpose = 'scene') {
     const remaining = deadline - clock();
-    if (remaining < 150 || !(await quota(uid))) throw new Error('AI_BUDGET');
+    if (remaining < 150) throw new Error('AI_TIMEOUT');
+    const limitError = await quota(uid, purpose);
+    if (limitError) throw new Error(limitError);
     const payload = {
       model: config.ai.model,
       messages,
@@ -209,12 +255,30 @@ function createScenePipeline(
       throw new Error('AI_JSON');
     }
   }
-  async function publish(eventId, scene, status, elapsedMs) {
+  async function publish(eventId, scene, status, elapsedMs, details = {}) {
     return store.transaction(async (tx) => {
       const event = await tx.get('events', eventId);
       if (!event || event.generation?.state === 'ready') return event;
       const editable = ['offered', 'pending', 'planned'].includes(event.state);
-      const chosen = editable ? scene : fallback(event);
+      const user = await tx.get('users', event.owner);
+      const recent = recentFor(user, clock());
+      let mode = editable ? status : 'fallback';
+      let fallbackReason = editable ? details.reason : 'EVENT_CLOSED';
+      if (mode === 'ai') {
+        try {
+          validateScene(
+            scene,
+            { item_name: storyItem(event), amount_cents: event.amount },
+            recent
+          );
+        } catch (error) {
+          mode = 'fallback';
+          fallbackReason = failureCode(error);
+        }
+      }
+      // Select inside the transaction, against the latest history, so simultaneous
+      // events cannot freeze the same fallback when they read an older snapshot.
+      const chosen = mode === 'ai' ? scene : fallback(event, recent);
       event.item = storyItem(event);
       event.title = chosen.title;
       event.reason = chosen.body;
@@ -222,7 +286,10 @@ function createScenePipeline(
       event.actionLabel = chosen.action_label;
       event.generation = {
         state: 'ready',
-        mode: editable ? status : 'fallback',
+        mode,
+        fallbackReason:
+          mode === 'fallback' ? fallbackReason || 'AI_FAILED' : '',
+        creativeAngle: mode === 'ai' ? details.angle || '' : chosen.motif,
         promptVersion: VERSION,
         model: config.ai.model,
         motif: chosen.motif,
@@ -230,8 +297,7 @@ function createScenePipeline(
         elapsedMs,
         finishedAt: clock()
       };
-      event.source =
-        editable && status === 'ai' ? 'zhipu-ai' : 'reviewed-library-v2';
+      event.source = mode === 'ai' ? 'zhipu-ai' : 'reviewed-library-v4';
       await tx.put('events', eventId, event);
       if (event.token) {
         const inv = await tx.get('invites', digest(event.token));
@@ -240,14 +306,29 @@ function createScenePipeline(
           await tx.put('invites', inv.id, inv);
         }
       }
-      const user = await tx.get('users', event.owner);
+      if (mode === 'fallback') {
+        const auditId = digest(event.id + ':generation');
+        await tx.put('aiAudit', auditId, {
+          id: auditId,
+          eventId: event.id,
+          reason: event.generation.fallbackReason,
+          createdAt: clock()
+        });
+      }
       if (user) {
         user.recentScenes = [
           ...(user.recentScenes || []),
-          { motif: chosen.motif, body: chosen.body, at: clock() }
+          {
+            eventId: event.id,
+            item: event.item,
+            motif: chosen.motif,
+            body: chosen.body,
+            creativeAngle: event.generation.creativeAngle,
+            at: clock()
+          }
         ]
           .filter((r) => r.at > clock() - 7 * 86400000)
-          .slice(-10);
+          .slice(-30);
         await tx.put('users', user.id, user);
       }
       return event;
@@ -255,13 +336,13 @@ function createScenePipeline(
   }
   async function ensureReady(
     eventId,
-    { background = false, forceFallback = false } = {}
+    { background = false, forceFallback = false, deadlineAt = Infinity } = {}
   ) {
     const start = clock(),
       budget = background
         ? config.ai.backgroundBudgetMs
         : config.ai.interactiveBudgetMs,
-      deadline = start + budget;
+      deadline = Math.min(start + budget, deadlineAt);
     const lockId = crypto.randomBytes(12).toString('hex');
     const claim = await store.transaction(async (tx) => {
       const e = await tx.get('events', eventId);
@@ -273,7 +354,8 @@ function createScenePipeline(
         // Repair only an unaccepted personal scene. Shared invitations and completed
         // receipts keep their original snapshot; never charge again or call AI on read.
         const oldVersion = e.generation.promptVersion || 'legacy';
-        const repaired = fallback(e);
+        const owner = await tx.get('users', e.owner);
+        const repaired = fallback(e, recentFor(owner, start));
         e.item = storyItem(e);
         e.title = repaired.title;
         e.reason = repaired.body;
@@ -282,13 +364,14 @@ function createScenePipeline(
         e.generation = {
           ...e.generation,
           mode: 'fallback',
+          fallbackReason: 'STYLE_REPAIR',
           promptVersion: VERSION,
           motif: repaired.motif,
           bodyHash: digest(repaired.body),
           repairedFromVersion: oldVersion,
           styleRepairedAt: start
         };
-        e.source = 'reviewed-library-v3';
+        e.source = 'reviewed-library-v4';
         await tx.put('events', eventId, e);
       }
       if (!e || !e.generation || e.generation.state === 'ready')
@@ -307,15 +390,21 @@ function createScenePipeline(
       forceFallback ||
       !['offered', 'pending', 'planned'].includes(e.state)
     )
-      return publish(e.id, fallback(e), 'fallback', clock() - start);
+      return publish(e.id, null, 'fallback', clock() - start, {
+        reason: !claim.locked
+          ? 'GENERATION_BUSY'
+          : !config.ai.enabled
+            ? 'AI_DISABLED'
+            : forceFallback
+              ? 'READ_FALLBACK'
+              : 'EVENT_CLOSED'
+      });
     const user = await store.get('users', e.owner),
-      recent = (user?.recentScenes || []).filter(
-        (r) => r.at > start - 7 * 86400000
-      );
-    const input = sceneInput(e, recent);
-    let reason = 'fallback';
+      recent = recentFor(user, start);
+    let reason = 'AI_TIMEOUT';
     for (let attempt = 0; attempt < 2 && clock() < deadline - 150; attempt++) {
       try {
+        const input = sceneInput(e, recent, attempt);
         const candidate = validateScene(
           await chat(
             e.owner,
@@ -347,34 +436,17 @@ function createScenePipeline(
           review.safe !== true
         )
           throw new Error('SEMANTIC_REJECTED');
-        return publish(e.id, candidate, 'ai', clock() - start);
+        return publish(e.id, candidate, 'ai', clock() - start, {
+          angle: input.creative_angle
+        });
       } catch (error) {
-        reason =
-          /^(SCENE_|AI_|SEMANTIC_|HTTP_|TIMEOUT|NETWORK_|INVALID_JSON)/.test(
-            error.message
-          )
-            ? error.message
-            : 'AI_FAILED';
+        reason = failureCode(error);
+        if (/^AI_.*QUOTA$|^AI_TIMEOUT$/.test(reason)) break;
       }
     }
-    const output = await publish(
-      e.id,
-      fallback(e),
-      'fallback',
-      clock() - start
-    );
-    // Store only a bounded reason code; never provider response bodies, prompts with secrets, or headers.
-    await store.transaction(async (tx) => {
-      const auditId = digest(e.id + ':generation');
-      await tx.put('aiAudit', auditId, {
-        id: auditId,
-        eventId: e.id,
-        reason,
-        createdAt: clock()
-      });
-    });
-    return output;
+    return publish(e.id, null, 'fallback', clock() - start, { reason });
   }
+
   async function giftMessages(uid, requestId, context) {
     const key = digest(uid + ':' + requestId);
     const start = clock(),
@@ -397,6 +469,11 @@ function createScenePipeline(
     if (claim.result) return claim.result;
     let options = Gift.fallbackMessages(context.item, context.exclude),
       mode = 'fallback';
+    let fallbackReason = !claim.locked
+      ? 'GENERATION_BUSY'
+      : !config.ai.enabled
+        ? 'AI_DISABLED'
+        : '';
     if (claim.locked && config.ai.enabled) {
       try {
         const input = {
@@ -412,7 +489,8 @@ function createScenePipeline(
               { role: 'user', content: JSON.stringify(input) }
             ],
             deadline,
-            0.95
+            0.95,
+            'gift'
           ),
           context.exclude
         );
@@ -429,7 +507,8 @@ function createScenePipeline(
             }
           ],
           deadline,
-          0
+          0,
+          'gift'
         );
         if (
           !review ||
@@ -439,7 +518,8 @@ function createScenePipeline(
           throw new Error('GIFT_REVIEW');
         options = candidate;
         mode = 'ai';
-      } catch (_) {
+      } catch (error) {
+        fallbackReason = failureCode(error);
         // Timeout, unavailable provider, exhausted quota or rejected text: keep the safe choices.
       }
     }
@@ -448,6 +528,17 @@ function createScenePipeline(
       // A concurrent fallback or successful retry wins; late responses never replace it.
       if (request.result.options) return request.result;
       request.result = { item: context.item, options, mode };
+      request.giftFallbackReason = mode === 'fallback' ? fallbackReason : '';
+      if (mode === 'fallback') {
+        const auditId = digest(key + ':gift');
+        await tx.put('aiAudit', auditId, {
+          id: auditId,
+          requestId: key,
+          purpose: 'gift',
+          reason: fallbackReason,
+          createdAt: clock()
+        });
+      }
       request.giftLeaseUntil = 0;
       await tx.put('requests', key, request);
       return request.result;
