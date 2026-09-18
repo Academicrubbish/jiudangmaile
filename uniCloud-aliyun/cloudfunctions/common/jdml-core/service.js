@@ -52,6 +52,7 @@ function createService(store, clock = Date.now, options = {}) {
       'bootstrap',
       'detail',
       'history',
+      'stats',
       'tick',
       'presence'
     ].includes(action);
@@ -803,6 +804,95 @@ function createService(store, clock = Date.now, options = {}) {
       next: rows.length === 30 ? (cursor || 0) + 30 : null
     };
   }
-  return { run, preview, history };
+  async function stats(uid) {
+    if (!uid) D.fail('LOGIN_REQUIRED', '请先登录');
+    const now = clock(),
+      PAGE = (options.stats && options.stats.page) || 500,
+      MAX = (options.stats && options.stats.max) || 5000,
+      SETTLED = ['accepted', 'confirmed', 'play_only'];
+    const all = [];
+    let skip = 0,
+      truncated = false;
+    for (;;) {
+      const rows = await store.listEvents(uid, skip, PAGE);
+      all.push(...rows);
+      if (rows.length < PAGE) break;
+      skip += PAGE;
+      if (all.length >= MAX) {
+        all.length = MAX;
+        truncated = true;
+        break;
+      }
+    }
+    const out = {
+      savedTotal: 0,
+      savedCount: 0,
+      fakeSpentTotal: 0,
+      momentsTotal: 0,
+      streakDays: 0,
+      treatsSent: 0,
+      treatsReceived: 0,
+      playOnlyCount: 0,
+      habitBreakdown: [],
+      firstEventAt: null,
+      spanDays: 0,
+      truncated
+    };
+    const dates = new Set(),
+      buckets = new Map();
+    let first = Infinity;
+    for (const e of all) {
+      if (e.state === 'planned') continue;
+      if (e.triggerSource === 'scheduled' && e.state === 'cancelled')
+        continue;
+      if (e.owner === uid) {
+        first = Math.min(first, e.createdAt || Infinity);
+        if (e.deposit && !e.deposit.revokedAt) {
+          out.savedTotal += e.deposit.amount;
+          out.savedCount++;
+          dates.add(e.deposit.date);
+        }
+        if (SETTLED.includes(e.state)) {
+          out.momentsTotal++;
+          out.fakeSpentTotal += e.amount;
+          if (e.kind === 'treat') out.treatsSent++;
+          if (e.state === 'play_only') out.playOnlyCount++;
+          const discovery = e.sceneSource === 'discovery',
+            key = discovery ? '_discovery' : e.habit || '_other';
+          const bucket =
+            buckets.get(key) ||
+            {
+              key,
+              count: 0,
+              amount: 0,
+              name: discovery
+                ? '意外之喜'
+                : e.habitName || e.habit || '其他'
+            };
+          bucket.count++;
+          bucket.amount += e.amount;
+          buckets.set(key, bucket);
+        }
+      } else if (e.recipient === uid && SETTLED.includes(e.state))
+        out.treatsReceived++;
+    }
+    let cursor = D.dateKey(now);
+    if (!dates.has(cursor)) cursor = D.dateKey(now - D.DAY);
+    while (dates.has(cursor)) {
+      out.streakDays++;
+      cursor = D.dateKey(
+        Date.parse(cursor + 'T00:00:00+08:00') - D.DAY
+      );
+    }
+    if (first < Infinity) {
+      out.firstEventAt = first;
+      out.spanDays = Math.floor((now - first) / D.DAY) + 1;
+    }
+    out.habitBreakdown = [...buckets.values()]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+    return out;
+  }
+  return { run, preview, history, stats };
 }
 module.exports = { createService, TABLES };

@@ -18,6 +18,7 @@ for (const dir of [
   'pages/setup',
   'pages/receipt',
   'pages/history',
+  'pages/stats',
   'pages/invite',
   'pages/profile',
   'uniCloud-aliyun/cloudfunctions/jdml-api',

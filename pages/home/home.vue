@@ -145,6 +145,7 @@
         <button class="secondary" @click="open('history')">
           消费记录与物品
         </button>
+        <button class="secondary" @click="open('stats')">我的战绩</button>
         <button class="secondary" @click="open('profile')">昵称与头像</button>
         <button class="secondary" @click="open('setup', 'edit=1')">
           习惯与剧情口味

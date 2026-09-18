@@ -36,6 +36,13 @@
       }
     },
     {
+      "path": "pages/stats/stats",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "就当买了"
+      }
+    },
+    {
       "path": "pages/invite/invite",
       "style": {
         "navigationStyle": "custom",

@@ -247,3 +247,44 @@ test('首页读取已经 ready 的旧空气故事也会触发修复，不能被�
   assert.equal(after.amount, first.amount);
   assert.doesNotMatch(after.reason, /空气奶茶|假装/);
 });
+
+test('统计入口免操作编号，直接聚合不触发场景补全', async () => {
+  let posts = 0;
+  const store = createMemoryStore();
+  const runtime = createRuntime(
+    store,
+    normalizeConfig({ ai: { enabled: true, apiKey: 'test-only-secret' } }),
+    {
+      clock: () => Date.parse('2026-09-15T02:00:00Z'),
+      post: async () => {
+        posts++;
+        return {};
+      }
+    }
+  );
+  await runtime.call(
+    'u',
+    'settings',
+    { daily: 2000, habit: 'milk_tea' },
+    'stats_settings_0001'
+  );
+  const event = await runtime.call(
+    'u',
+    'create',
+    { kind: 'self' },
+    'stats_create_000001'
+  );
+  await runtime.call('u', 'accept', { id: event.id }, 'stats_accept_000001');
+  await runtime.call(
+    'u',
+    'confirm',
+    { id: event.id, amount: 1200 },
+    'stats_confirm_000001'
+  );
+  const before = posts;
+  const out = await runtime.call('u', 'stats', {}, '');
+  assert.equal(out.savedTotal, 1200);
+  assert.equal(out.savedCount, 1);
+  assert.equal(out.momentsTotal, 1);
+  assert.equal(posts, before);
+});

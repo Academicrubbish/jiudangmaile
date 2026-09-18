@@ -36,7 +36,14 @@ async function ensureLogin() {
   throw new Error('请在微信小程序中登录使用');
   // #endif
 }
-const readActions = ['bootstrap', 'history', 'detail', 'preview', 'presence'];
+const readActions = [
+  'bootstrap',
+  'history',
+  'stats',
+  'detail',
+  'preview',
+  'presence'
+];
 export async function api(action, input = {}) {
   const mutation = !readActions.includes(action),
     key = 'jdml-pending:' + action + ':' + JSON.stringify(input);

@@ -20,6 +20,7 @@ const ALLOWED = new Set([
   'detail',
   'profile',
   'history',
+  'stats',
   'subscription',
   'pauseReminders',
   'subscriptionSettings',
@@ -58,6 +59,7 @@ function createRuntime(store, config, deps = {}) {
     if (!input || typeof input !== 'object' || Array.isArray(input))
       D.fail('INVALID_INPUT', '操作参数格式无效');
     if (!ALLOWED.has(action)) D.fail('UNKNOWN_ACTION', '暂不支持这个操作');
+    if (action === 'stats') return service.stats(uid);
     if (action === 'history') {
       const result = await service.history(uid, input.cursor);
       result.events = await Promise.all(
